@@ -22,6 +22,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 //	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	implementation 'com.github.docker-java:docker-java:3.2.6'
+//	implementation 'org.glassfish.jersey.core:jersey-server:2.34'
 }
 
 tasks.named('test') {

@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thesis-prototype
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: thesis-prototype
+  template:
+    metadata:
+      labels:
+        app: thesis-prototype
+    spec:
+      containers:
+        - name: thesis-prototype
+          image: thesis-prototype:latest
+          ports:
+            - containerPort: 8080

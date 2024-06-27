@@ -1,55 +1,25 @@
 package com.example.thesisprototype.controllers;
 
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1Container;
+import io.kubernetes.client.openapi.models.V1ContainerPort;
+import io.kubernetes.client.openapi.models.V1ObjectMeta;
+import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1PodSpec;
+import io.kubernetes.client.openapi.models.V1PodTemplateSpec;
+import io.kubernetes.client.util.Config;
 import org.springframework.web.bind.annotation.*;
-
-import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.command.CreateContainerResponse;
-import com.github.dockerjava.api.exception.DockerException;
-import com.github.dockerjava.api.model.ExposedPort;
-import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.PortBinding;
-import com.github.dockerjava.api.model.Ports;
-import com.github.dockerjava.core.DockerClientBuilder;
-import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.yaml.snakeyaml.Yaml;
 
-import java.net.URI;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
+import java.util.*;
 
 @RestController
-@RequestMapping("/containers")
 public class ContainerController {
 
-    // We tried this but we are goind with different approach.
-//    @PostMapping("/nginx")
-//    public String createNginxContainer() {
-//        try (DockerClient dockerClient = DockerClientBuilder.getInstance().build()){
-//            System.out.println("ypppppppppppppppppppppppppppppp");
-//
-//            ExposedPort exposedPort = ExposedPort.tcp(80);
-//            PortBinding portBinding = PortBinding.parse("8080:80");
-//
-//            CreateContainerResponse containerResponse = dockerClient.createContainerCmd("nginx:latest")
-//                    .withExposedPorts(exposedPort)
-//                    .withHostConfig(HostConfig.newHostConfig().withPortBindings(portBinding))
-//                    .exec();
-//
-//            dockerClient.startContainerCmd(containerResponse.getId()).exec();
-//
-//            return "NGINX container created successfully";
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            return "Failed to create NGINX container";
-//        }
-//    }
-    @PostMapping("/createFromYamlString")
-    @CrossOrigin(origins = "http://localhost:3000")
+    @PostMapping("/api/containers/createFromYamlString")
     public String createContainerFromYamlString(@RequestBody Map<String, String> requestBody) {
         String yamlString = requestBody.get("yamlData");
         Yaml yaml = new Yaml();
@@ -62,15 +32,8 @@ public class ContainerController {
         Map<String, Object> services = (Map<String, Object>) yamlMap.get("services");
 
         try {
-            DockerClient dockerClient = DockerClientBuilder.getInstance()
-                    .withDockerHttpClient(new ApacheDockerHttpClient.Builder()
-                            .dockerHost(new URI("tcp://localhost:2375"))
-                            .sslConfig(null)
-                            .maxConnections(100)
-                            .connectionTimeout(Duration.ofSeconds(30))
-                            .responseTimeout(Duration.ofSeconds(45))
-                            .build())
-                    .build();
+            ApiClient client = Config.defaultClient();
+            CoreV1Api api = new CoreV1Api(client);
 
             for (Map.Entry<String, Object> serviceEntry : services.entrySet()) {
                 String serviceName = serviceEntry.getKey();
@@ -79,38 +42,38 @@ public class ContainerController {
                 String imageName = (String) serviceDetails.get("image");
                 List<String> ports = (List<String>) serviceDetails.get("ports");
 
+                V1Container container = new V1Container();
+                container.setName(serviceName);
+                container.setImage(imageName);
+
+                List<V1ContainerPort> containerPorts = new ArrayList<>();
                 for (String port : ports) {
                     String[] portParts = port.split(":");
-                    int hostPort = Integer.parseInt(portParts[0]);
                     int containerPort = Integer.parseInt(portParts[1]);
 
-                    ExposedPort tcpPort = ExposedPort.tcp(containerPort);
-                    PortBinding portBinding = new PortBinding(Ports.Binding.bindPort(hostPort), tcpPort);
-
-                    // Pull the image if it doesn't exist
-                    try {
-                        dockerClient.inspectImageCmd(imageName).exec();
-                    } catch (DockerException e) {
-                        if (e.getMessage().contains("No such image")) {
-                            dockerClient.pullImageCmd(imageName).start().awaitCompletion();
-                        } else {
-                            throw e;
-                        }
-                    }
-
-                    CreateContainerResponse containerResponse = dockerClient.createContainerCmd(imageName)
-                            .withExposedPorts(tcpPort)
-                            .withHostConfig(HostConfig.newHostConfig().withPortBindings(portBinding))
-                            .exec();
-
-                    dockerClient.startContainerCmd(containerResponse.getId()).exec();
+                    V1ContainerPort containerPortSpec = new V1ContainerPort();
+                    containerPortSpec.setContainerPort(containerPort);
+                    containerPorts.add(containerPortSpec);
                 }
+                container.setPorts(containerPorts);
+
+                V1Pod pod = new V1Pod();
+                V1PodSpec podSpec = new V1PodSpec();
+                podSpec.setContainers(Collections.singletonList(container));
+                V1PodTemplateSpec podTemplateSpec = new V1PodTemplateSpec();
+                podTemplateSpec.setSpec(podSpec);
+
+                V1ObjectMeta meta = new V1ObjectMeta();
+                meta.setName(serviceName);
+                pod.setMetadata(meta);
+                pod.setSpec(podSpec);
+
+                api.createNamespacedPod("default", pod, null, null, null);
             }
             return "All containers created and started successfully.";
-        } catch (Exception e) {
+        } catch (IOException | ApiException e) {
             e.printStackTrace();
             return "Failed to create containers: " + e.getMessage();
         }
     }
 }
-

@@ -44,10 +44,13 @@ const MyContainersPage = () => {
 
   // Function to handle form submission
   const handleSubmit = () => {
+    const MINIKUBE_IP = '192.168.49.2';
+    const NODE_PORT = '30008';
+    const baseURL = `http://${MINIKUBE_IP}:${NODE_PORT}/api/containers/createFromYamlString`;
     // Make a POST request to the backend API based on the selected option
     if (yamlData.trim() !== '') {
       // If YAML data is provided directly
-      axios.post('http://localhost:8180/api/containers/createFromYamlString', { yamlData })
+      axios.post(baseURL, { yamlData })
         .then(response => {
           console.log('Response:', response.data);
           // Handle success

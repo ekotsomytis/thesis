@@ -19,7 +19,7 @@ import java.util.*;
 @RestController
 public class ContainerController {
 
-    @PostMapping("/api/containers/createFromYamlString")
+    @PostMapping("/containers/createFromYamlString")
     public String createContainerFromYamlString(@RequestBody Map<String, String> requestBody) {
         String yamlString = requestBody.get("yamlData");
         Yaml yaml = new Yaml();

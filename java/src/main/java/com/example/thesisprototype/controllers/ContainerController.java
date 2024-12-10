@@ -76,4 +76,10 @@ public class ContainerController {
             return "Failed to create containers: " + e.getMessage();
         }
     }
+
+    //this for testing api
+    @GetMapping("/test")
+    public String test() {
+        return "Hello test";
+    }
 }

@@ -17,7 +17,7 @@ spec:
           image: thesis-prototype:latest
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8080
+            - containerPort: 8180
 ---
 apiVersion: v1
 kind: Service
@@ -30,5 +30,5 @@ spec:
   ports:
     - protocol: TCP
       port: 8080
-      targetPort: 8080
-      nodePort: 30001  # Specify a NodePort or let Kubernetes assign one
+      targetPort: 8180
+      nodePort: 30001

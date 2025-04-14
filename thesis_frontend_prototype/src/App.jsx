@@ -23,22 +23,22 @@ function Layout() {
 function App() {
   return (
     <>
-    <BrowserRouter>
-    
-    <Routes>
-      <Route path="/" element={<LoginPage />} />
+      <BrowserRouter>
 
-      {/* Protected routes with Navbar */}
-      <Route element={<Layout />}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/pods" element={<PodManagement />} />
-        <Route path="/courses" element={<CourseManagement />} />
-      </Route>
-    </Routes>
-  </BrowserRouter>
-   <Toaster position="top-right" />
+        <Routes>
+          <Route path="/" element={<LoginPage />} />
+
+          {/* Protected routes with Navbar */}
+          <Route element={<Layout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/pods" element={<PodManagement />} />
+            <Route path="/courses" element={<CourseManagement />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+      <Toaster position="top-right" />
     </>
-    
+
   );
 }
 

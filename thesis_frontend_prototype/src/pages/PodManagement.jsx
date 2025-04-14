@@ -45,9 +45,9 @@ export default function PodManagement() {
       pods.map((pod) =>
         pod.id === id
           ? {
-              ...pod,
-              status: pod.status === "Running" ? "Stopped" : "Running",
-            }
+            ...pod,
+            status: pod.status === "Running" ? "Stopped" : "Running",
+          }
           : pod
       )
     );

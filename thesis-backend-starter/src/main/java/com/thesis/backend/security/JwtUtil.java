@@ -3,6 +3,7 @@ package com.thesis.backend.security;
 import com.thesis.backend.entity.User;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
@@ -11,6 +12,8 @@ import java.util.Date;
 @Component
 public class JwtUtil {
     private final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    private static final String SECRET_KEY = "jfiA83hdKlmQ29slRnVcXzBbTmPlReWq";
+
 
     public String generateToken(User user) {
         // 24 hours
@@ -37,5 +40,24 @@ public class JwtUtil {
         } catch (JwtException e) {
             return false;
         }
+    }
+    public boolean isTokenValid(String token, UserDetails userDetails) {
+        final String username = extractUsername(token);
+        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+    }
+    private boolean isTokenExpired(String token) {
+        return extractAllClaims(token).getExpiration().before(new Date());
+    }
+
+    private Claims extractAllClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    private Key getSigningKey() {
+        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
     }
 }

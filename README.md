@@ -25,6 +25,7 @@
 ---
 
 Δομή Project με βάση το Github Page
+```
 thesis/
 ├── backend/               # Laravel ή Spring Boot
 │   ├── src/
@@ -36,3 +37,4 @@ thesis/
 ├── ssh-server/            # SSH setup (Dockerized)
 ├── k8s/                   # YAML configs για Kubernetes
 └── docker-compose.yml     # Τοπικό dev περιβάλλον
+```

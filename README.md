@@ -27,7 +27,7 @@
 Δομή Project με βάση το Github Page
 ```
 thesis/
-├── backend/               # Laravel ή Spring Boot
+├── backend/               # Spring Boot
 │   ├── src/
 │   └── Dockerfile
 ├── frontend/              # React app

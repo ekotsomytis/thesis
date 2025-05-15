@@ -1,6 +1,7 @@
 package com.thesis.backend.model;
 
-import javax.persistence.*;
+
+import jakarta.persistence.*;
 import java.util.HashMap;
 import java.util.Map;
 

@@ -1,4 +1,4 @@
-package com.thesis.backend.ssh.config;
+package com.thesis.backend.config;
 
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.auth.pubkey.PublickeyAuthenticator;

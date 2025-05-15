@@ -1,4 +1,4 @@
-package com.thesis.backend.kubernetes.controller;
+package com.thesis.backend.controller;
 
 import com.thesis.backend.kubernetes.service.DeploymentService;
 import com.thesis.backend.kubernetes.service.NamespaceService;

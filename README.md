@@ -92,7 +92,7 @@ docker build -t thesis-backend:latest .
 
 ### Εφαρμογή στο Kubernetes
 ```bash
-kubectl apply -f backend-deployment.yaml
+kubectl apply -f k8s-deployment.yaml
 ```
 
 ### Πρόσβαση στην Εφαρμογή

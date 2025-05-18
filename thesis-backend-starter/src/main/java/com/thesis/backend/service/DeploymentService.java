@@ -109,7 +109,7 @@ public class DeploymentService {
      * Delete a deployment
      */
     public boolean deleteDeployment(String namespace, String name) {
-        return kubernetesClient.apps().deployments().inNamespace(namespace).withName(name).delete();
+        return !kubernetesClient.apps().deployments().inNamespace(namespace).withName(name).delete().isEmpty();
     }
 
     /**

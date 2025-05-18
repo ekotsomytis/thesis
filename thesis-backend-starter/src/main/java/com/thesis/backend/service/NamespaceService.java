@@ -56,7 +56,7 @@ public class NamespaceService {
      * Delete a namespace
      */
     public boolean deleteNamespace(String name) {
-        return kubernetesClient.namespaces().withName(name).delete();
+        return !kubernetesClient.namespaces().withName(name).delete().isEmpty();
     }
 
     /**

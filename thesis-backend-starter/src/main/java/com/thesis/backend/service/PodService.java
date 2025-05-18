@@ -105,7 +105,7 @@ public class PodService {
      * Delete a pod
      */
     public boolean deletePod(String namespace, String name) {
-        return kubernetesClient.pods().inNamespace(namespace).withName(name).delete();
+        return !kubernetesClient.pods().inNamespace(namespace).withName(name).delete().isEmpty();
     }
 
     /**
@@ -114,9 +114,8 @@ public class PodService {
     public KubernetesPod updatePodResources(String namespace, String name, 
                                           Map<String, String> resources) {
         
-        PodResource<Pod> podResource = kubernetesClient.pods()
-                .inNamespace(namespace)
-                .withName(name);
+        PodResource podResource = kubernetesClient.pods().inNamespace(namespace).withName(name);
+
         
         Pod existingPod = podResource.get();
         if (existingPod == null) {

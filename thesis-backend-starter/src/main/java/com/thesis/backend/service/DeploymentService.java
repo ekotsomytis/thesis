@@ -1,4 +1,4 @@
-package com.thesis.backend.kubernetes.service;
+package com.thesis.backend.service;
 
 import com.thesis.backend.model.KubernetesDeployment;
 import io.fabric8.kubernetes.api.model.apps.Deployment;

@@ -1,4 +1,4 @@
-package com.thesis.backend.service;
+package com.thesis.backend.kubernetes.service;
 
 import com.thesis.backend.model.KubernetesNamespace;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -56,8 +56,7 @@ public class NamespaceService {
      * Delete a namespace
      */
     public boolean deleteNamespace(String name) {
-       var result = kubernetesClient.namespaces().withName(name).delete();
-       return result != null && !result.isEmpty();
+        return !kubernetesClient.namespaces().withName(name).delete().isEmpty();
     }
 
     /**

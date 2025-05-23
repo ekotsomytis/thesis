@@ -1,4 +1,4 @@
-package com.thesis.backend.service;
+package com.thesis.backend.kubernetes.service;
 
 import com.thesis.backend.model.KubernetesPod;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -105,8 +105,7 @@ public class PodService {
      * Delete a pod
      */
     public boolean deletePod(String namespace, String name) {
-        var result = kubernetesClient.pods().inNamespace(namespace).withName(name).delete();
-        return result != null && !result.isEmpty();
+        return !kubernetesClient.pods().inNamespace(namespace).withName(name).delete().isEmpty();
     }
 
     /**
@@ -115,9 +114,8 @@ public class PodService {
     public KubernetesPod updatePodResources(String namespace, String name, 
                                           Map<String, String> resources) {
         
-        PodResource podResource = kubernetesClient.pods()
-                .inNamespace(namespace)
-                .withName(name);
+        PodResource podResource = kubernetesClient.pods().inNamespace(namespace).withName(name);
+
         
         Pod existingPod = podResource.get();
         if (existingPod == null) {

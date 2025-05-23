@@ -1,4 +1,4 @@
-package com.thesis.backend.service;
+package com.thesis.backend.kubernetes.service;
 
 import com.thesis.backend.model.KubernetesDeployment;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -109,8 +109,7 @@ public class DeploymentService {
      * Delete a deployment
      */
     public boolean deleteDeployment(String namespace, String name) {
-        var result = kubernetesClient.apps().deployments().inNamespace(namespace).withName(name).delete();
-        return result != null && !result.isEmpty();
+        return !kubernetesClient.apps().deployments().inNamespace(namespace).withName(name).delete().isEmpty();
     }
 
     /**

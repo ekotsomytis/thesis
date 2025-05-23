@@ -2,9 +2,10 @@
 package com.thesis.backend.service;
 
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.client.*;
 import org.springframework.stereotype.Service;
+import io.fabric8.kubernetes.api.model.PodBuilder;
+
 
 @Service
 public class KubernetesService {
@@ -15,18 +16,19 @@ public class KubernetesService {
         String podName = "pod-" + username + "-" + System.currentTimeMillis();
         Pod pod = new PodBuilder()
                 .withNewMetadata()
-                .withName(podName)
+                    .withName("example-pod")
+                    .withNamespace("default")
                 .endMetadata()
                 .withNewSpec()
-                .addNewContainer()
-                .withName("main")
-                .withImage(image)
-                .endContainer()
-                .withRestartPolicy("Never")
+                    .addNewContainer()
+                        .withName("example-container")
+                        .withImage("nginx")
+                    .endContainer()
                 .endSpec()
-                .build(); // build the Pod object
+                .build();
 
         client.pods().inNamespace("default").create(pod);
+
         return pod.getMetadata().getName();
     }
 }

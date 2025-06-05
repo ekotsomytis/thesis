@@ -57,9 +57,9 @@ spec:
             - name: MARIADB_DATABASE
               value: thesis_db
             - name: MARIADB_USER
-              value: thesis_user
+              value: vaggeli
             - name: MARIADB_PASSWORD
-              value: thesis_pass
+              value: yourpassword
           ports:
             - containerPort: 3306
 

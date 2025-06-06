@@ -23,12 +23,12 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
     runtimeOnly 'org.mariadb.jdbc:mariadb-java-client:3.1.2'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'com.h2database:h2:2.1.214'
     compileOnly 'org.projectlombok:lombok:1.18.30'
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
     implementation 'io.fabric8:kubernetes-client:6.0.0'
     implementation 'org.apache.sshd:sshd-core:2.9.2'
-    implementation 'javax.persistence:javax.persistence-api:2.2'
-    implementation 'org.hibernate:hibernate-core:5.6.15.Final'
+
     implementation 'io.fabric8:kubernetes-client:6.10.0'
 }
 

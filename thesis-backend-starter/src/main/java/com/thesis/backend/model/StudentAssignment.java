@@ -1,6 +1,7 @@
 package com.thesis.backend.model;
 
-import javax.persistence.*;
+import com.thesis.backend.entity.User;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity

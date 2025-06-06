@@ -1,4 +1,4 @@
-package com.thesis.backend.kubernetes.config;
+package com.thesis.backend.config;
 
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;

@@ -1,6 +1,5 @@
 package com.thesis.backend.dto;
 
-import com.thesis.backend.entity.User.Role;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,5 +8,6 @@ import lombok.Setter;
 public class RegisterRequest {
     private String email;
     private String password;
-    private Role role; // Usually set to PROFESSOR by default
+    private String username;
+    private String role; // "ROLE_TEACHER" or "ROLE_STUDENT"
 }

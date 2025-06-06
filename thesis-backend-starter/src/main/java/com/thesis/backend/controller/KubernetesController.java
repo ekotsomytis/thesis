@@ -1,8 +1,8 @@
-package com.thesis.backend.kubernetes.controller;
+package com.thesis.backend.controller;
 
-import com.thesis.backend.kubernetes.service.DeploymentService;
-import com.thesis.backend.kubernetes.service.NamespaceService;
-import com.thesis.backend.kubernetes.service.PodService;
+import com.thesis.backend.service.DeploymentService;
+import com.thesis.backend.service.NamespaceService;
+import com.thesis.backend.service.PodService;
 import com.thesis.backend.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;

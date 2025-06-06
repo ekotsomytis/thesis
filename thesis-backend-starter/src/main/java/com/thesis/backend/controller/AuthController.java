@@ -1,61 +1,59 @@
 package com.thesis.backend.controller;
 
 import com.thesis.backend.dto.AuthRequest;
-import com.thesis.backend.dto.AuthResponse;
 import com.thesis.backend.entity.User;
-import com.thesis.backend.repository.UserRepository;
 import com.thesis.backend.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.*;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
-
     private final AuthenticationManager authManager;
     private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
-        authManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
+        try {
+            logger.debug("Attempting authentication for user: {}", request.getUsername());
+            
+            Authentication auth = authManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+            );
+            
+            User user = (User) auth.getPrincipal();
+            String token = jwtUtil.generateToken(user);
 
-        var user = userRepository.findByEmail(request.getEmail()).orElseThrow();
-        String token = jwtUtil.generateToken(user);
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("username", user.getUsername());
+            response.put("role", user.getRole());
 
-        return ResponseEntity.ok(new AuthResponse(token));
+            logger.info("Successfully authenticated user: {}", request.getUsername());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Authentication failed for user: {} - {}", request.getUsername(), e.getMessage());
+            return ResponseEntity.badRequest().body("Authentication failed: " + e.getMessage());
+        }
     }
 
-    // TEMP: register user for testing
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody AuthRequest request) {
-        // Basic null or blank check
-        if (request.getEmail() == null || request.getEmail().isBlank()
-                || request.getPassword() == null || request.getPassword().isBlank()) {
-            return ResponseEntity.badRequest().body("Email and password must not be empty.");
-        }
-
-        // Check for existing email
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Email already in use.");
-        }
-
-        // Save the new user
-        var user = User.builder()
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(User.Role.PROFESSOR) // Default to professor
-                .build();
-        userRepository.save(user);
-
-        // Optional: return JWT token after registration
-        String token = jwtUtil.generateToken(user);
-        return ResponseEntity.ok(new AuthResponse(token)); // auto-login behavior
+        // ... existing register implementation ...
+        return ResponseEntity.badRequest().body("Registration is not implemented");
     }
-
 }

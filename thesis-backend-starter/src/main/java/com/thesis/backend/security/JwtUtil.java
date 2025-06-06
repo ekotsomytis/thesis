@@ -16,8 +16,8 @@ public class JwtUtil {
         // 24 hours
         long EXPIRATION = 1000 * 60 * 60 * 24;
         return Jwts.builder()
-                .setSubject(user.getEmail())
-                .claim("role", user.getRole().name())
+                .setSubject(user.getUsername())
+                .claim("role", user.getRole())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
                 .signWith(key)

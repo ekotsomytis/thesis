@@ -1,4 +1,4 @@
-USE thesis_db;
+USE thesisdb;
 
 -- Drop existing tables
 DROP TABLE IF EXISTS users;
@@ -15,13 +15,13 @@ CREATE TABLE IF NOT EXISTS users (
 -- Insert a test teacher user (password: teacher123)
 INSERT INTO users (username, password, email, role)
 VALUES ('teacher', 
-        '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xd00DMxs.AQubh4a', 
+        '$2a$10$QLcHn3PWgcHq6aT7w3lKtOvZab6TDznqSNTW8nHZKIRWNqZtjhF26', 
         'teacher@example.com', 
         'ROLE_TEACHER');
 
 -- Insert a test student user (password: student123)
 INSERT INTO users (username, password, email, role)
 VALUES ('student', 
-        '$2a$10$3GyqKpUZX2peHx7xqHSmN.FDFf5GQFMiV7d.8O.V4IcXpuL9P5gOi', 
+        '$2a$10$2W7nw8M9DNNhHrN21RdMmOWcucjTTPTE5RlIgJ3/6qqbUEViurTgC', 
         'student@example.com', 
         'ROLE_STUDENT');

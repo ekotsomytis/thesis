@@ -15,9 +15,24 @@ public class ImageTemplateController {
 
     private final ImageTemplateRepository repo;
 
+    @GetMapping("/test")
+    public String test() {
+        System.out.println("DEBUG: Test endpoint called");
+        return "Test endpoint works!";
+    }
+
     @GetMapping
     public List<ImageTemplate> all() {
-        return repo.findAll();
+        System.out.println("DEBUG: ImageTemplateController.all() called");
+        try {
+            List<ImageTemplate> result = repo.findAll();
+            System.out.println("DEBUG: Found " + result.size() + " templates");
+            return result;
+        } catch (Exception e) {
+            System.out.println("DEBUG: Exception in all(): " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     @PostMapping

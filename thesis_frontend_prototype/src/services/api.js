@@ -2,15 +2,53 @@ const API_BASE_URL = 'http://localhost:8080/api';
 
 class ApiService {
   constructor() {
-    this.token = localStorage.getItem('authToken');
+    this.refreshToken();
+  }
+
+  refreshToken() {
+    // Get token from user object in localStorage, matching AuthContext pattern
+    const savedUser = localStorage.getItem('user');
+    console.log('refreshToken: savedUser from localStorage:', savedUser);
+    
+    if (savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        console.log('refreshToken: parsedUser:', parsedUser);
+        console.log('refreshToken: parsedUser.token:', parsedUser.token);
+        this.token = parsedUser.token;
+      } catch (error) {
+        console.error('refreshToken: Error parsing savedUser:', error);
+        this.token = null;
+      }
+    } else {
+      console.log('refreshToken: No savedUser found in localStorage');
+      this.token = null;
+    }
+    
+    console.log('refreshToken: Final token value:', this.token);
   }
 
   setToken(token) {
     this.token = token;
+    // Update the token in the user object in localStorage
+    const savedUser = localStorage.getItem('user');
+    if (savedUser && token) {
+      try {
+        const userData = JSON.parse(savedUser);
+        userData.token = token;
+        localStorage.setItem('user', JSON.stringify(userData));
+      } catch (error) {
+        console.error('Error updating token in user data:', error);
+      }
+    }
+    
+    // Also maintain backwards compatibility with separate authToken storage
     if (token) {
       localStorage.setItem('authToken', token);
     } else {
       localStorage.removeItem('authToken');
+      // Clear user data if token is being removed
+      localStorage.removeItem('user');
     }
   }
 
@@ -22,6 +60,14 @@ class ApiService {
   }
 
   async request(endpoint, options = {}) {
+    // Refresh token from localStorage before each request
+    this.refreshToken();
+    
+    console.log('=== API Request Debug ===');
+    console.log('Endpoint:', endpoint);
+    console.log('Current token:', this.token);
+    console.log('Headers:', this.getAuthHeaders());
+    
     const url = `${API_BASE_URL}${endpoint}`;
     
     const config = {
@@ -35,7 +81,50 @@ class ApiService {
       if (!response.ok) {
         if (response.status === 401) {
           this.setToken(null);
-          window.location.href = '/';
+          // Don't automatically redirect, let components handle the auth state change
+          throw new Error('Authentication failed');
+        }
+        
+        const errorText = await response.text();
+        throw new Error(errorText || `HTTP error! status: ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await response.json();
+      }
+      
+      return await response.text();
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to make authenticated requests with a specific token
+  async requestWithToken(endpoint, token, options = {}) {
+    const url = `${API_BASE_URL}${endpoint}`;
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    };
+    
+    const config = {
+      headers,
+      ...options
+    };
+
+    console.log('=== API Request With Token Debug ===');
+    console.log('Endpoint:', endpoint);
+    console.log('Token:', token);
+    console.log('Headers:', headers);
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        if (response.status === 401) {
           throw new Error('Authentication failed');
         }
         
@@ -298,6 +387,41 @@ class ApiService {
 
   async getUserContainers(userId) {
     return await this.request(`/users/${userId}/containers`);
+  }
+
+  // Generic HTTP methods for convenience
+  async get(endpoint) {
+    return await this.request(endpoint, { method: 'GET' });
+  }
+
+  async post(endpoint, data) {
+    return await this.request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async put(endpoint, data) {
+    return await this.request(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async delete(endpoint) {
+    return await this.request(endpoint, { method: 'DELETE' });
+  }
+
+  // Generic HTTP methods with token parameter
+  async getWithToken(endpoint, token) {
+    return await this.requestWithToken(endpoint, token, { method: 'GET' });
+  }
+
+  async postWithToken(endpoint, data, token) {
+    return await this.requestWithToken(endpoint, token, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
   }
 }
 

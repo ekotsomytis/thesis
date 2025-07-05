@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import ApiService from '../services/api';
+import api from '../services/api';
 
 const AuthContext = createContext();
 
@@ -18,18 +18,21 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Check if user is already logged in on app start
-    const token = localStorage.getItem('authToken');
     const savedUser = localStorage.getItem('user');
     
-    if (token && savedUser) {
+    if (savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-        ApiService.setToken(token);
+        if (parsedUser.token) {
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+          api.setToken(parsedUser.token);
+        } else {
+          // User data exists but no token - clear storage
+          localStorage.removeItem('user');
+        }
       } catch (error) {
         console.error('Error parsing saved user:', error);
-        localStorage.removeItem('authToken');
         localStorage.removeItem('user');
       }
     }
@@ -40,7 +43,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     try {
       setIsLoading(true);
-      const response = await ApiService.login(username, password);
+      const response = await api.login(username, password);
       
       const userData = {
         username: response.username,
@@ -51,6 +54,7 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       setIsAuthenticated(true);
       localStorage.setItem('user', JSON.stringify(userData));
+      api.setToken(response.token); // Set token for future API calls
       
       return { success: true, user: userData };
     } catch (error) {
@@ -62,18 +66,18 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    ApiService.logout();
+    api.logout();
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('user');
   };
 
   const isTeacher = () => {
-    return user?.role === 'ROLE_TEACHER';
+    return user?.role === 'TEACHER';
   };
 
   const isStudent = () => {
-    return user?.role === 'ROLE_STUDENT';
+    return user?.role === 'STUDENT';
   };
 
   const value = {

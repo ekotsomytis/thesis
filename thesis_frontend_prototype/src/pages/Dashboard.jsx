@@ -3,9 +3,11 @@ import { Container, Row, Col, Card, Button, Alert, Badge, ProgressBar } from 're
 import { FaServer, FaUsers, FaDocker, FaCube, FaPlay, FaStop, FaPlus } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 
 const Dashboard = () => {
+  const { user, isAuthenticated } = useAuth();
   const [dashboardData, setDashboardData] = useState({
     statistics: {
       totalPods: 0,
@@ -29,27 +31,45 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // Mock user role - in real app, this would come from auth context
-  const userRole = localStorage.getItem('userRole') || 'student';
+  // Get user role from auth context
+  const userRole = user?.role || 'STUDENT';
 
   useEffect(() => {
-    fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 30000); // Refresh every 30 seconds
+    console.log('=== Dashboard useEffect Debug ===');
+    console.log('localStorage user:', localStorage.getItem('user'));
+    console.log('localStorage authToken:', localStorage.getItem('authToken'));
+    console.log('user from context:', user);
+    console.log('isAuthenticated from context:', isAuthenticated);
+    
+    if (isAuthenticated && user) {
+      fetchDashboardData();
+    }
+    const interval = setInterval(() => {
+      if (isAuthenticated && user) {
+        fetchDashboardData();
+      }
+    }, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [isAuthenticated, user]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      console.log('=== Dashboard Data Fetch Started ===');
+      console.log('User object:', user);
+      console.log('User role:', userRole);
+      console.log('Is authenticated:', isAuthenticated);
       
       // Fetch different data based on user role
-      if (userRole === 'teacher') {
+      if (userRole === 'TEACHER') {
+        console.log('Fetching teacher data...');
         await Promise.all([
           fetchTeacherStatistics(),
           fetchRecentActivities(),
           fetchSystemStatus()
         ]);
       } else {
+        console.log('Fetching student data...');
         await Promise.all([
           fetchStudentStatistics(),
           fetchStudentActivities()
@@ -67,29 +87,53 @@ const Dashboard = () => {
 
   const fetchTeacherStatistics = async () => {
     try {
+      console.log('=== Teacher Statistics Fetch ===');
+      console.log('User role:', userRole);
+      console.log('User object:', user);
+      
+      console.log('Making API calls...');
+      const userToken = user?.token;
+      console.log('Using token:', userToken);
+      
       const [podsRes, containersRes, usersRes, templatesRes] = await Promise.all([
-        api.get('/api/kubernetes/pods'),
-        api.get('/api/containers'),
-        api.get('/api/users'),
-        api.get('/api/container-templates')
+        api.getWithToken('/kubernetes/pods', userToken),
+        api.getWithToken('/containers', userToken),
+        api.getWithToken('/users', userToken),
+        api.getWithToken('/images', userToken)
       ]);
 
-      const pods = podsRes.data || [];
-      const containers = containersRes.data || [];
-      const users = usersRes.data || [];
-      const templates = templatesRes.data || [];
+      console.log('Raw API responses:');
+      console.log('- Pods:', podsRes);
+      console.log('- Containers:', containersRes);
+      console.log('- Users:', usersRes);
+      console.log('- Templates:', templatesRes);
+
+      const pods = podsRes || [];
+      const containers = containersRes || [];
+      const users = usersRes || [];
+      const templates = templatesRes || [];
+
+      console.log('Processed data:');
+      console.log('- Pods length:', pods.length);
+      console.log('- Containers length:', containers.length);
+      console.log('- Users length:', users.length);
+      console.log('- Templates length:', templates.length);
+
+      const newStatistics = {
+        totalPods: pods.length,
+        runningPods: pods.filter(pod => pod.status === 'Running').length,
+        totalContainers: containers.length,
+        activeContainers: containers.filter(c => c.status === 'running').length,
+        totalUsers: users.length,
+        activeUsers: users.filter(u => u.status === 'active').length,
+        templates: templates.length
+      };
+
+      console.log('New statistics object:', newStatistics);
 
       setDashboardData(prev => ({
         ...prev,
-        statistics: {
-          totalPods: pods.length,
-          runningPods: pods.filter(pod => pod.status === 'Running').length,
-          totalContainers: containers.length,
-          activeContainers: containers.filter(c => c.status === 'running').length,
-          totalUsers: users.length,
-          activeUsers: users.filter(u => u.status === 'active').length,
-          templates: templates.length
-        },
+        statistics: newStatistics,
         quickActions: [
           { label: 'Create Pod', icon: FaPlus, action: () => navigate('/kubernetes-management'), color: 'primary' },
           { label: 'Manage Templates', icon: FaDocker, action: () => navigate('/container-templates'), color: 'success' },
@@ -97,8 +141,14 @@ const Dashboard = () => {
           { label: 'Pod Management', icon: FaCube, action: () => navigate('/pod-management'), color: 'warning' }
         ]
       }));
+
+      console.log('Statistics updated successfully');
     } catch (error) {
-      console.error('Failed to fetch teacher statistics:', error);
+      console.error('=== Teacher Statistics Error ===');
+      console.error('Error details:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
       // Set default values if API calls fail
       setDashboardData(prev => ({
         ...prev,
@@ -117,8 +167,9 @@ const Dashboard = () => {
 
   const fetchStudentStatistics = async () => {
     try {
-      const containersRes = await api.get('/api/containers/my-containers');
-      const containers = containersRes.data || [];
+      const userToken = user?.token;
+      const containersRes = await api.getWithToken('/containers/my-containers', userToken);
+      const containers = containersRes || [];
 
       setDashboardData(prev => ({
         ...prev,
@@ -155,10 +206,11 @@ const Dashboard = () => {
 
   const fetchRecentActivities = async () => {
     try {
-      const response = await api.get('/api/activities/recent');
+      const userToken = user?.token;
+      const response = await api.getWithToken('/activities/recent', userToken);
       setDashboardData(prev => ({
         ...prev,
-        recentActivities: response.data || []
+        recentActivities: response || []
       }));
     } catch (error) {
       console.error('Failed to fetch recent activities:', error);
@@ -171,10 +223,11 @@ const Dashboard = () => {
 
   const fetchStudentActivities = async () => {
     try {
-      const response = await api.get('/api/activities/my-activities');
+      const userToken = user?.token;
+      const response = await api.getWithToken('/activities/my-activities', userToken);
       setDashboardData(prev => ({
         ...prev,
-        recentActivities: response.data || []
+        recentActivities: response || []
       }));
     } catch (error) {
       console.error('Failed to fetch student activities:', error);
@@ -187,10 +240,11 @@ const Dashboard = () => {
 
   const fetchSystemStatus = async () => {
     try {
-      const response = await api.get('/api/system/status');
+      const userToken = user?.token;
+      const response = await api.getWithToken('/system/status', userToken);
       setDashboardData(prev => ({
         ...prev,
-        systemStatus: response.data || {
+        systemStatus: response || {
           kubernetes: 'unknown',
           database: 'unknown',
           ssh: 'unknown'
@@ -256,7 +310,7 @@ const Dashboard = () => {
     <Container fluid className="py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h1 className="h3 mb-0">
-          {userRole === 'teacher' ? 'Teacher Dashboard' : 'Student Dashboard'}
+          {userRole === 'TEACHER' ? 'Teacher Dashboard' : 'Student Dashboard'}
         </h1>
         <Button variant="outline-primary" onClick={fetchDashboardData} disabled={loading}>
           <i className="fas fa-sync-alt me-2"></i>
@@ -272,7 +326,7 @@ const Dashboard = () => {
 
       {/* Statistics Cards */}
       <Row className="g-4 mb-4">
-        {userRole === 'teacher' ? (
+        {userRole === 'TEACHER' ? (
           <>
             <Col md={6} lg={3}>
               <StatCard
@@ -337,7 +391,7 @@ const Dashboard = () => {
 
       <Row className="g-4">
         {/* Quick Actions */}
-        <Col lg={userRole === 'teacher' ? 8 : 12}>
+        <Col lg={userRole === 'TEACHER' ? 8 : 12}>
           <Card className="border-0 shadow-sm">
             <Card.Header className="bg-white border-bottom">
               <h5 className="mb-0">Quick Actions</h5>
@@ -345,7 +399,7 @@ const Dashboard = () => {
             <Card.Body>
               <Row className="g-3">
                 {dashboardData.quickActions.map((action, index) => (
-                  <Col md={6} lg={userRole === 'teacher' ? 3 : 6} key={index}>
+                  <Col md={6} lg={userRole === 'TEACHER' ? 3 : 6} key={index}>
                     <Button
                       variant={`outline-${action.color}`}
                       className="w-100 p-3 h-100 d-flex flex-column align-items-center justify-content-center"
@@ -362,7 +416,7 @@ const Dashboard = () => {
         </Col>
 
         {/* System Status - Teacher Only */}
-        {userRole === 'teacher' && (
+        {userRole === 'TEACHER' && (
           <Col lg={4}>
             <Card className="border-0 shadow-sm">
               <Card.Header className="bg-white border-bottom">

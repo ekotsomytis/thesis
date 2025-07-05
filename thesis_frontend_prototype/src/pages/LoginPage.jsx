@@ -20,10 +20,11 @@ export default function LoginPage() {
   const from = location.state?.from?.pathname || "/dashboard";
 
   useEffect(() => {
-    if (isAuthenticated) {
+    // Only redirect if already authenticated (e.g., page refresh)
+    if (isAuthenticated && !isSubmitting) {
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, navigate, from]);
+  }, [isAuthenticated, navigate, from, isSubmitting]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -101,8 +102,9 @@ export default function LoginPage() {
           </form>
           <div className="mt-4 text-sm text-gray-600">
             <p>Demo credentials:</p>
-            <p><strong>Teacher:</strong> teacher / teacher123</p>
-            <p><strong>Student:</strong> student / student123</p>
+            <p><strong>Teacher:</strong> teacher / TeachSecure2024!</p>
+            <p><strong>Student:</strong> student / StudyHard2024#</p>
+            <p><strong>Admin:</strong> admin / AdminPower2024$</p>
           </div>
         </CardContent>
       </Card>

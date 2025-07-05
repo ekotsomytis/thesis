@@ -7,7 +7,7 @@ import api from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function StudentContainers() {
-  const { isTeacher } = useAuth();
+  const { user, isTeacher } = useAuth();
   const [containers, setContainers] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,6 +16,9 @@ export default function StudentContainers() {
   const [logs, setLogs] = useState({});
   const [showLogsFor, setShowLogsFor] = useState(null);
   const [sshConnections, setSshConnections] = useState([]);
+  const [showSshModal, setShowSshModal] = useState(false);
+  const [selectedContainer, setSelectedContainer] = useState(null);
+  const [sshInfo, setSshInfo] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -24,18 +27,33 @@ export default function StudentContainers() {
   const loadData = async () => {
     try {
       setLoading(true);
+      
+      // Ensure API has the current token
+      if (user && user.token) {
+        api.setToken(user.token);
+      }
+      
       const [containersResponse, templatesResponse] = await Promise.all([
         isTeacher() ? api.getAllContainers() : api.getMyContainers(),
-        api.getSshEnabledTemplates()
+        api.getImageTemplates() // Use ImageTemplates instead of ContainerTemplates
       ]);
       
       setContainers(containersResponse || []);
       setTemplates(templatesResponse || []);
       
+      console.log('Loaded containers:', containersResponse);
+      console.log('Loaded templates:', templatesResponse);
+      
       if (!isTeacher()) {
         // Load SSH connections for students
-        const sshResponse = await api.getSshConnections();
-        setSshConnections(sshResponse || []);
+        try {
+          const sshResponse = await api.getSshConnections();
+          setSshConnections(sshResponse || []);
+          console.log('Loaded SSH connections:', sshResponse);
+        } catch (error) {
+          console.error('Failed to load SSH connections:', error);
+          // Don't fail the whole load if SSH connections fail
+        }
       }
     } catch (error) {
       console.error("Failed to load data:", error);
@@ -133,6 +151,23 @@ export default function StudentContainers() {
     } catch (error) {
       console.error("Failed to revoke SSH connection:", error);
       toast.error("Failed to revoke SSH connection");
+    }
+  };
+
+  const handleShowSshInfo = async (container) => {
+    try {
+      // Ensure API has the current token
+      if (user && user.token) {
+        api.setToken(user.token);
+      }
+      
+      const info = await api.getContainerSshInfo(container.id);
+      setSelectedContainer(container);
+      setSshInfo(info);
+      setShowSshModal(true);
+    } catch (error) {
+      console.error('Failed to get SSH info:', error);
+      toast.error('Failed to get SSH information: ' + error.message);
     }
   };
 
@@ -281,10 +316,10 @@ export default function StudentContainers() {
                   {!isTeacher() && container.status === 'Running' && (
                     <Button
                       size="sm"
-                      onClick={() => handleCreateSshConnection(container.id)}
-                      className="bg-purple-500 hover:bg-purple-600"
+                      onClick={() => handleShowSshInfo(container)}
+                      className="bg-green-500 hover:bg-green-600"
                     >
-                      SSH Connect
+                      SSH Info
                     </Button>
                   )}
                   
@@ -371,6 +406,63 @@ export default function StudentContainers() {
             </CardContent>
           </div>
         </Card>
+      )}
+
+      {/* SSH Info Modal */}
+      {showSshModal && selectedContainer && sshInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">SSH Connection Info</h2>
+            
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-md">
+                <h3 className="font-medium mb-2">Container: {selectedContainer.name}</h3>
+                <p className="text-sm text-gray-600 mb-2">Image: {sshInfo.dockerImage}</p>
+                
+                {sshInfo.ready ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div><strong>Host:</strong> {sshInfo.host}</div>
+                      <div><strong>Port:</strong> {sshInfo.port}</div>
+                      <div><strong>Username:</strong> {sshInfo.username}</div>
+                      <div><strong>Password:</strong> {sshInfo.password}</div>
+                    </div>
+                    
+                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
+                      <p className="text-sm text-blue-800">
+                        <strong>SSH Command:</strong>
+                      </p>
+                      <code className="text-xs bg-blue-100 p-1 rounded block mt-1">
+                        ssh -p {sshInfo.port} {sshInfo.username}@{sshInfo.host}
+                      </code>
+                    </div>
+                    
+                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                      <p className="text-xs text-yellow-800">
+                        {sshInfo.instructions}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-orange-50 border border-orange-200 rounded">
+                    <p className="text-sm text-orange-800">
+                      {sshInfo.message}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <Button
+                onClick={() => setShowSshModal(false)}
+                className="bg-gray-600 hover:bg-gray-700 text-white flex-1"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

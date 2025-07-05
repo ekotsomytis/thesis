@@ -29,6 +29,7 @@ class ApiService {
   }
 
   setToken(token) {
+    console.log('API.setToken called with:', token ? token.substring(0, 20) + '...' : 'null');
     this.token = token;
     // Update the token in the user object in localStorage
     const savedUser = localStorage.getItem('user');
@@ -60,8 +61,10 @@ class ApiService {
   }
 
   async request(endpoint, options = {}) {
-    // Refresh token from localStorage before each request
-    this.refreshToken();
+    // Only refresh token from localStorage if we don't already have one
+    if (!this.token) {
+      this.refreshToken();
+    }
     
     console.log('=== API Request Debug ===');
     console.log('Endpoint:', endpoint);
@@ -167,6 +170,11 @@ class ApiService {
     return await this.request('/container-templates');
   }
 
+  // Image Templates endpoints  
+  async getImageTemplates() {
+    return await this.request('/images');
+  }
+
   async createContainerTemplate(template) {
     return await this.request('/container-templates', {
       method: 'POST',
@@ -209,36 +217,62 @@ class ApiService {
 
   // Container Instance endpoints
   async getMyContainers() {
-    return await this.request('/container-instances/my-containers');
+    return await this.request('/containers/my-containers');
+  }
+
+  async getAllContainers() {
+    return await this.request('/containers');
   }
 
   async createContainer(templateId) {
-    return await this.request('/container-instances', {
+    return await this.request('/containers', {
       method: 'POST',
       body: JSON.stringify({ templateId })
     });
   }
 
+  async createContainerForStudent(imageId, studentId) {
+    console.log('=== API createContainerForStudent Debug ===');
+    console.log('imageId:', imageId, 'type:', typeof imageId);
+    console.log('studentId:', studentId, 'type:', typeof studentId);
+    
+    const body = { imageId, studentId };
+    console.log('Request body:', body);
+    
+    return await this.request('/containers/create-for-student', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+  }
+
   async startContainer(id) {
-    return await this.request(`/container-instances/${id}/start`, {
+    return await this.request(`/containers/${id}/start`, {
       method: 'POST'
     });
   }
 
   async stopContainer(id) {
-    return await this.request(`/container-instances/${id}/stop`, {
+    return await this.request(`/containers/${id}/stop`, {
       method: 'POST'
     });
   }
 
   async deleteContainer(id) {
-    return await this.request(`/container-instances/${id}`, {
+    return await this.request(`/containers/${id}`, {
       method: 'DELETE'
     });
   }
 
   async getContainerLogs(id) {
-    return await this.request(`/container-instances/${id}/logs`);
+    return await this.request(`/containers/${id}/logs`);
+  }
+
+  async getContainerStats() {
+    return await this.request('/containers/stats');
+  }
+  
+  async getContainerSshInfo(id) {
+    return await this.request(`/containers/${id}/ssh-info`);
   }
 
   // SSH Connection endpoints
@@ -356,26 +390,22 @@ class ApiService {
   }
 
   // Enhanced Container Instance Management
-  async getAllContainers() {
-    return await this.request('/container-instances/all');
-  }
-
   async createContainerFromTemplate(templateId, studentId = null) {
     const body = { templateId };
     if (studentId) body.studentId = studentId;
     
-    return await this.request('/container-instances/from-template', {
+    return await this.request('/containers/create-for-student', {
       method: 'POST',
       body: JSON.stringify(body)
     });
   }
 
   async getContainerStatus(id) {
-    return await this.request(`/container-instances/${id}/status`);
+    return await this.request(`/containers/${id}/status`);
   }
 
   async restartContainer(id) {
-    return await this.request(`/container-instances/${id}/restart`, {
+    return await this.request(`/containers/${id}/restart`, {
       method: 'POST'
     });
   }
@@ -383,6 +413,10 @@ class ApiService {
   // User Management (for teachers managing students)
   async getAllStudents() {
     return await this.request('/users/students');
+  }
+
+  async getAllUsers() {
+    return await this.request('/users');
   }
 
   async getUserContainers(userId) {

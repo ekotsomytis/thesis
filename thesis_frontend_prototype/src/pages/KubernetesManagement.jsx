@@ -3,9 +3,11 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { toast } from "react-hot-toast";
+import { useAuth } from "../contexts/AuthContext";
 import api from "../services/api";
 
 export default function KubernetesManagement() {
+  const { user, isTeacher } = useAuth();
   const [activeTab, setActiveTab] = useState('pods');
   const [pods, setPods] = useState([]);
   const [deployments, setDeployments] = useState([]);
@@ -45,12 +47,40 @@ export default function KubernetesManagement() {
   });
 
   useEffect(() => {
-    loadData();
-  }, [activeTab, selectedNamespace]);
+    if (!isTeacher()) {
+      toast.error('Access denied. Teachers only.');
+      return;
+    }
+    
+    // Add a small delay to ensure user context is fully loaded
+    const loadDataWithDelay = async () => {
+      if (user && user.token) {
+        await loadData();
+      } else {
+        console.log('Waiting for user authentication...');
+      }
+    };
+    
+    loadDataWithDelay();
+  }, [activeTab, selectedNamespace, user?.token]); // Watch user.token specifically
 
   const loadData = async () => {
     setLoading(true);
     try {
+      console.log('Loading Kubernetes data...');
+      console.log('User:', user);
+      console.log('User token:', user?.token ? user.token.substring(0, 20) + '...' : 'null');
+      
+      // Ensure API has the current token
+      if (user && user.token) {
+        console.log('Setting API token for Kubernetes management');
+        api.setToken(user.token);
+      } else {
+        console.log('No user or token available for Kubernetes data loading');
+        setLoading(false);
+        return;
+      }
+      
       const namespacesData = await api.getAllNamespaces();
       setNamespaces(namespacesData || []);
 
@@ -81,6 +111,11 @@ export default function KubernetesManagement() {
     }
 
     try {
+      // Ensure API has the current token
+      if (user && user.token) {
+        api.setToken(user.token);
+      }
+      
       const labels = parseLabels(podForm.labels);
       const resources = {
         ...(podForm.cpuLimit && { 'cpu-limit': podForm.cpuLimit }),
@@ -116,6 +151,11 @@ export default function KubernetesManagement() {
     }
 
     try {
+      // Ensure API has the current token
+      if (user && user.token) {
+        api.setToken(user.token);
+      }
+      
       const labels = parseLabels(deploymentForm.labels);
       const resources = {
         ...(deploymentForm.cpuLimit && { 'cpu-limit': deploymentForm.cpuLimit }),
@@ -152,6 +192,11 @@ export default function KubernetesManagement() {
     }
 
     try {
+      // Ensure API has the current token
+      if (user && user.token) {
+        api.setToken(user.token);
+      }
+      
       const labels = parseLabels(namespaceForm.labels);
       await api.createNamespace(namespaceForm.name, labels);
       
@@ -182,6 +227,11 @@ export default function KubernetesManagement() {
     if (!window.confirm(`Are you sure you want to delete pod ${name}?`)) return;
     
     try {
+      // Ensure API has the current token
+      if (user && user.token) {
+        api.setToken(user.token);
+      }
+      
       await api.deletePod(namespace, name);
       toast.success("Pod deleted successfully");
       loadData();
@@ -195,6 +245,11 @@ export default function KubernetesManagement() {
     if (!window.confirm(`Are you sure you want to delete deployment ${name}?`)) return;
     
     try {
+      // Ensure API has the current token
+      if (user && user.token) {
+        api.setToken(user.token);
+      }
+      
       await api.deleteDeployment(namespace, name);
       toast.success("Deployment deleted successfully");
       loadData();
@@ -208,6 +263,11 @@ export default function KubernetesManagement() {
     if (!window.confirm(`Are you sure you want to delete namespace ${name}? This will delete all resources in the namespace.`)) return;
     
     try {
+      // Ensure API has the current token
+      if (user && user.token) {
+        api.setToken(user.token);
+      }
+      
       await api.deleteNamespace(name);
       toast.success("Namespace deleted successfully");
       if (selectedNamespace === name) {
@@ -222,6 +282,11 @@ export default function KubernetesManagement() {
 
   const handleScaleDeployment = async (namespace, name, replicas) => {
     try {
+      // Ensure API has the current token
+      if (user && user.token) {
+        api.setToken(user.token);
+      }
+      
       await api.scaleDeployment(namespace, name, replicas);
       toast.success(`Deployment scaled to ${replicas} replicas`);
       loadData();
@@ -242,6 +307,19 @@ export default function KubernetesManagement() {
     };
     return colors[status] || colors.Unknown;
   };
+
+  if (!isTeacher()) {
+    return (
+      <div className="p-6">
+        <Card>
+          <CardContent className="p-6">
+            <h2 className="text-xl font-bold text-red-600">Access Denied</h2>
+            <p>This page is only accessible to teachers.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">

@@ -36,7 +36,7 @@ public class ContainerTemplateController {
      * Get SSH-enabled templates only
      */
     @GetMapping("/ssh-enabled")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('TEACHER', 'STUDENT')")
     public ResponseEntity<List<ContainerTemplate>> getSshEnabledTemplates(@AuthenticationPrincipal User user) {
         List<ContainerTemplate> templates = containerTemplateRepository.findSshEnabledTemplates(user);
         return ResponseEntity.ok(templates);

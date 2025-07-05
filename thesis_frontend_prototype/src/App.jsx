@@ -7,6 +7,7 @@ import PodManagement from "./pages/PodManagement";
 import CourseManagement from "./pages/CourseManagement";
 import ContainerTemplates from "./pages/ContainerTemplates";
 import StudentContainers from "./pages/StudentContainers";
+import StudentContainerManagement from "./pages/StudentContainerManagement";
 import KubernetesManagement from "./pages/KubernetesManagement";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -45,6 +46,11 @@ function App() {
             <Route path="/templates" element={
               <ProtectedRoute requireRole="ROLE_TEACHER">
                 <ContainerTemplates />
+              </ProtectedRoute>
+            } />
+            <Route path="/student-containers" element={
+              <ProtectedRoute requireRole="ROLE_TEACHER">
+                <StudentContainerManagement />
               </ProtectedRoute>
             } />
             <Route path="/kubernetes" element={

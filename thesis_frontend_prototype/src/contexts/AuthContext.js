@@ -73,11 +73,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isTeacher = () => {
-    return user?.role === 'TEACHER';
+    return user?.role === 'ROLE_TEACHER';
   };
 
   const isStudent = () => {
-    return user?.role === 'STUDENT';
+    return user?.role === 'ROLE_STUDENT';
   };
 
   const value = {

@@ -54,6 +54,16 @@ export default function Navbar() {
                 Container Templates
               </Link>
             </li>
+
+            <li className="mr-6">
+              <Link
+                to="/student-containers"
+                className={`hover:text-gray-300 ${location.pathname === "/student-containers" ? "font-bold underline" : ""
+                  }`}
+              >
+                Student Containers
+              </Link>
+            </li>
             
             <li className="mr-6">
               <Link

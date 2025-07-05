@@ -1,4 +1,3 @@
-
 package com.thesis.backend.controller;
 
 import com.thesis.backend.entity.ContainerInstance;
@@ -8,6 +7,7 @@ import com.thesis.backend.repository.ContainerInstanceRepository;
 import com.thesis.backend.repository.ImageTemplateRepository;
 import com.thesis.backend.service.ContainerInstanceService;
 import com.thesis.backend.service.KubernetesService;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +30,12 @@ public class ContainerController {
     private final ImageTemplateRepository imageRepo;
     private final ContainerInstanceService containerInstanceService;
 
+    @Data
+    public static class CreateContainerRequest {
+        private Long imageId;  // Changed from templateId to imageId
+        private Long studentId;
+    }
+
     @PostMapping("/create/{imageId}")
     public ResponseEntity<?> create(@PathVariable Long imageId, @RequestParam String username) {
         ImageTemplate template = imageRepo.findById(imageId).orElseThrow();
@@ -40,6 +46,28 @@ public class ContainerController {
                 .name(podName)
                 .build();
         return ResponseEntity.ok(containerRepo.save(instance));
+    }
+
+    /**
+     * Create a container for a student (teacher only)
+     */
+    @PostMapping("/create-for-student")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<?> createContainerForStudent(
+            @RequestBody CreateContainerRequest request,
+            @AuthenticationPrincipal User teacher) {
+        try {
+            log.info("Teacher {} creating container for student {} using image {}", 
+                    teacher.getUsername(), request.getStudentId(), request.getImageId());
+            
+            ContainerInstance instance = containerInstanceService.createContainerForStudent(
+                    request.getImageId(), request.getStudentId(), teacher);
+            
+            return ResponseEntity.ok(instance);
+        } catch (Exception e) {
+            log.error("Failed to create container for student", e);
+            return ResponseEntity.badRequest().body("Failed to create container: " + e.getMessage());
+        }
     }
 
     /**
@@ -109,6 +137,75 @@ public class ContainerController {
         } catch (Exception e) {
             log.error("Failed to fetch container statistics", e);
             return ResponseEntity.internalServerError().build();
+        }
+    }
+    
+    @PostMapping("/{id}/refresh-status")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<?> refreshContainerStatus(@PathVariable Long id) {
+        try {
+            ContainerInstance container = containerRepo.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Container not found"));
+            
+            // Update container status
+            containerInstanceService.updateContainerStatus(container);
+            
+            return ResponseEntity.ok(container);
+        } catch (Exception e) {
+            log.error("Failed to refresh container status", e);
+            return ResponseEntity.badRequest().body("Failed to refresh status: " + e.getMessage());
+        }
+    }
+    
+    @PostMapping("/refresh-all-statuses")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<?> refreshAllContainerStatuses() {
+        try {
+            List<ContainerInstance> containers = containerRepo.findAll();
+            
+            for (ContainerInstance container : containers) {
+                containerInstanceService.updateContainerStatus(container);
+            }
+            
+            return ResponseEntity.ok(Map.of("updated", containers.size()));
+        } catch (Exception e) {
+            log.error("Failed to refresh all container statuses", e);
+            return ResponseEntity.badRequest().body("Failed to refresh statuses: " + e.getMessage());
+        }
+    }
+    
+    @GetMapping("/{id}/ssh-info")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN') or @containerInstanceService.canStudentAccessContainer(#id, authentication.name)")
+    public ResponseEntity<?> getSshInfo(@PathVariable Long id) {
+        try {
+            ContainerInstance container = containerRepo.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Container not found"));
+            
+            // Generate SSH connection details
+            Map<String, Object> sshInfo = new HashMap<>();
+            sshInfo.put("containerId", container.getId());
+            sshInfo.put("containerName", container.getName());
+            sshInfo.put("status", container.getStatus());
+            sshInfo.put("podName", container.getKubernetesPodName());
+            
+            if ("Running".equals(container.getStatus())) {
+                // In development mode, provide simulated SSH details
+                sshInfo.put("host", "localhost");
+                sshInfo.put("port", 2200 + container.getId().intValue()); // Use unique port per container
+                sshInfo.put("username", "root");
+                sshInfo.put("password", "student123");
+                sshInfo.put("dockerImage", container.getImageTemplate().getDockerImage());
+                sshInfo.put("ready", true);
+                sshInfo.put("instructions", "Use these credentials to connect via SSH. In a real deployment, this would connect to the actual container.");
+            } else {
+                sshInfo.put("ready", false);
+                sshInfo.put("message", "Container is not running yet. Please wait for it to start.");
+            }
+            
+            return ResponseEntity.ok(sshInfo);
+        } catch (Exception e) {
+            log.error("Failed to get SSH info", e);
+            return ResponseEntity.badRequest().body("Failed to get SSH info: " + e.getMessage());
         }
     }
 }

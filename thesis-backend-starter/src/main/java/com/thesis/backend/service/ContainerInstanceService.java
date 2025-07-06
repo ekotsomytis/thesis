@@ -8,7 +8,16 @@ import com.thesis.backend.repository.ContainerInstanceRepository;
 import com.thesis.backend.repository.ContainerTemplateRepository;
 import com.thesis.backend.repository.ImageTemplateRepository;
 import com.thesis.backend.repository.UserRepository;
-import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodBuilder;
+import io.fabric8.kubernetes.api.model.PodSpecBuilder;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -150,8 +159,15 @@ public class ContainerInstanceService {
             throw new RuntimeException("Access denied");
         }
         
-        // Delete the Kubernetes pod
-        kubernetesClient.pods().inNamespace(namespace).withName(instance.getKubernetesPodName()).delete();
+        // Delete the Kubernetes pod and service
+        try {
+            kubernetesClient.pods().inNamespace(namespace).withName(instance.getKubernetesPodName()).delete();
+            kubernetesClient.services().inNamespace(namespace).withName(instance.getKubernetesPodName() + "-ssh").delete();
+            
+            log.info("Stopped Kubernetes pod and service for container {}", instance.getName());
+        } catch (Exception e) {
+            log.warn("Could not stop Kubernetes resources (development mode): {}", e.getMessage());
+        }
         
         // Update status
         instance.setStatus("Stopped");
@@ -191,7 +207,16 @@ public class ContainerInstanceService {
         }
         
         // Delete Kubernetes resources
-        kubernetesClient.pods().inNamespace(namespace).withName(instance.getKubernetesPodName()).delete();
+        try {
+            kubernetesClient.pods().inNamespace(namespace).withName(instance.getKubernetesPodName()).delete();
+            
+            // Delete the SSH service
+            kubernetesClient.services().inNamespace(namespace).withName(instance.getKubernetesPodName() + "-ssh").delete();
+            
+            log.info("Deleted Kubernetes pod and service for container {}", instance.getName());
+        } catch (Exception e) {
+            log.warn("Could not delete Kubernetes resources (development mode): {}", e.getMessage());
+        }
         
         // Delete from database
         containerInstanceRepository.delete(instance);
@@ -311,7 +336,7 @@ public class ContainerInstanceService {
         }
         
         // Create the pod
-        kubernetesClient.pods().inNamespace(namespace).create(pod);        
+        kubernetesClient.pods().inNamespace(namespace).resource(pod).create();        
         return containerName;
     }
 
@@ -332,7 +357,7 @@ public class ContainerInstanceService {
                 .endSpec()
                 .build();
         
-        kubernetesClient.persistentVolumeClaims().inNamespace(namespace).create(pvc);
+        kubernetesClient.persistentVolumeClaims().inNamespace(namespace).resource(pvc).create();
     }
     
     /**
@@ -379,7 +404,7 @@ public class ContainerInstanceService {
     
     /**
      * Create a simple Kubernetes pod for student containers with SSH access
-     * In development mode, this will simulate pod creation
+     * Uses the SSH-enabled Docker image and creates a NodePort service for external access
      */
     private String createSimpleKubernetesPod(ImageTemplate imageTemplate, String containerName, User student) {
         try {
@@ -389,13 +414,15 @@ public class ContainerInstanceService {
             labels.put("type", "student-container");
             labels.put("ssh-enabled", "true");
             
-            // Create a simple container with SSH enabled
+            // Create a container with SSH enabled using our custom SSH image
             Container container = new ContainerBuilder()
                     .withName("main-container")
-                    .withImage(imageTemplate.getDockerImage())
+                    .withImage("thesis-ssh-container:latest") // Use our SSH-enabled image
+                    .withImagePullPolicy("Never") // Use local image in Minikube
                     .addNewPort()
                         .withContainerPort(22)
                         .withProtocol("TCP")
+                        .withName("ssh")
                     .endPort()
                     .addNewEnv()
                         .withName("ROOT_PASSWORD")
@@ -430,20 +457,102 @@ public class ContainerInstanceService {
                     .endSpec()
                     .build();
             
-            // Try to create the pod, but catch any connection errors for development
-            kubernetesClient.pods().inNamespace(namespace).create(pod);
+            // Create the pod
+            kubernetesClient.pods().inNamespace(namespace).resource(pod).create();
             
-            log.info("Created Kubernetes pod {} for student {} with image {}", 
-                    containerName, student.getUsername(), imageTemplate.getDockerImage());
+            // Create NodePort service for SSH access
+            createNodePortService(containerName, labels);
+            
+            log.info("Created Kubernetes pod {} with SSH-enabled image for student {}", 
+                    containerName, student.getUsername());
                     
         } catch (Exception e) {
-            // In development mode, log the error but continue (simulate pod creation)
-            log.warn("Could not create actual Kubernetes pod (development mode): {}", e.getMessage());
-            log.info("Simulating pod creation for {} - student {} with image {}", 
-                    containerName, student.getUsername(), imageTemplate.getDockerImage());
+            // Log the actual error for debugging
+            log.error("Failed to create Kubernetes pod {}: {}", containerName, e.getMessage(), e);
+            log.info("Simulating pod creation for {} - student {} with SSH-enabled image", 
+                    containerName, student.getUsername());
         }
         
         return containerName;
+    }
+    
+    /**
+     * Create NodePort service for SSH access to a container
+     */
+    private void createNodePortService(String containerName, Map<String, String> labels) {
+        try {
+            // Calculate a unique NodePort (30000-32767 range in Kubernetes)
+            int nodePort = 30000 + Math.abs(containerName.hashCode() % 2767);
+            
+            io.fabric8.kubernetes.api.model.Service service = new ServiceBuilder()
+                    .withNewMetadata()
+                        .withName(containerName + "-ssh")
+                        .withNamespace(namespace)
+                        .withLabels(labels)
+                    .endMetadata()
+                    .withNewSpec()
+                        .withType("NodePort")
+                        .withSelector(labels)
+                        .addNewPort()
+                            .withName("ssh")
+                            .withPort(22)
+                            .withTargetPort(new IntOrString(22))
+                            .withNodePort(nodePort)
+                            .withProtocol("TCP")
+                        .endPort()
+                    .endSpec()
+                    .build();
+            
+            kubernetesClient.services().inNamespace(namespace).resource(service).create();
+            
+            log.info("Created NodePort service {}-ssh with port {} for SSH access", containerName, nodePort);
+        } catch (Exception e) {
+            log.warn("Could not create NodePort service for SSH access (development mode): {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Get the NodePort assigned to a container's SSH service
+     */
+    public Integer getContainerSshPort(String containerName) {
+        try {
+            io.fabric8.kubernetes.api.model.Service service = kubernetesClient.services()
+                    .inNamespace(namespace)
+                    .withName(containerName + "-ssh")
+                    .get();
+            
+            if (service != null && service.getSpec().getPorts() != null && !service.getSpec().getPorts().isEmpty()) {
+                return service.getSpec().getPorts().get(0).getNodePort();
+            }
+        } catch (Exception e) {
+            log.warn("Could not get NodePort for container {} (development mode): {}", containerName, e.getMessage());
+        }
+        
+        // Fallback: calculate the same port we would have assigned
+        return 30000 + Math.abs(containerName.hashCode() % 2767);
+    }
+
+    /**
+     * Get Minikube IP address for SSH connections
+     */
+    public String getMinikubeIp() {
+        try {
+            // Try to get the actual Minikube IP
+            Process process = Runtime.getRuntime().exec("minikube ip");
+            java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(process.getInputStream()));
+            String ip = reader.readLine();
+            if (ip != null && !ip.trim().isEmpty()) {
+                log.info("Using Minikube IP: {}", ip);
+                return ip.trim();
+            }
+        } catch (Exception e) {
+            log.warn("Could not get Minikube IP: {}", e.getMessage());
+        }
+        
+        // Fallback to localhost for development
+        log.info("Using localhost as fallback IP");
+        return "localhost";
     }
     
     /**

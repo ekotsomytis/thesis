@@ -189,14 +189,18 @@ public class ContainerController {
             sshInfo.put("podName", container.getKubernetesPodName());
             
             if ("Running".equals(container.getStatus())) {
-                // In development mode, provide simulated SSH details
-                sshInfo.put("host", "localhost");
-                sshInfo.put("port", 2200 + container.getId().intValue()); // Use unique port per container
+                // Get real SSH connection details from Kubernetes
+                String minikubeIp = containerInstanceService.getMinikubeIp();
+                Integer sshPort = containerInstanceService.getContainerSshPort(container.getKubernetesPodName());
+                
+                sshInfo.put("host", minikubeIp);
+                sshInfo.put("port", sshPort);
                 sshInfo.put("username", "root");
                 sshInfo.put("password", "student123");
-                sshInfo.put("dockerImage", container.getImageTemplate().getDockerImage());
+                sshInfo.put("dockerImage", "thesis-ssh-container:latest");
                 sshInfo.put("ready", true);
-                sshInfo.put("instructions", "Use these credentials to connect via SSH. In a real deployment, this would connect to the actual container.");
+                sshInfo.put("instructions", "Connect using: ssh -p " + sshPort + " root@" + minikubeIp);
+                sshInfo.put("note", "This connects to a real SSH-enabled container running in Minikube");
             } else {
                 sshInfo.put("ready", false);
                 sshInfo.put("message", "Container is not running yet. Please wait for it to start.");

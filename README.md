@@ -118,6 +118,43 @@ npm start
 
 Το frontend θα εκκινήσει στο http://localhost:3000
 
+### 6. Κτίσιμο Backend & Frontend Images
+
+```bash
+# Χρήση του Docker του Minikube (αν δεν το κάναμε ήδη)
+eval $(minikube docker-env)
+
+# Backend API image
+docker build -t thesis-backend:latest ./thesis-backend-starter
+
+# Frontend React image
+docker build -t thesis-frontend:latest ./thesis_frontend_prototype
+```
+
+### 7. Deployment στο Minikube
+
+```bash
+# Database
+kubectl apply -f mariadb-deployment.yaml
+
+# Backend
+kubectl apply -f thesis-backend-starter/backend-deployment.yaml
+
+# Frontend
+kubectl apply -f frontend-deployment.yaml
+```
+
+Μετά το deployment, πάρτε τα NodePort URLs:
+
+```bash
+kubectl get svc
+
+# Ή απευθείας
+minikube service thesis-frontend-service --url
+minikube service thesis-backend-service --url
+```
+
+
 ## 👥 Χρήση της Εφαρμογής
 
 ### Προκαθορισμένοι Χρήστες:

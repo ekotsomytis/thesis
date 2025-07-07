@@ -325,6 +325,9 @@ ssh -p 8023 root@127.0.0.1
 # Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 6.10.14-linuxkit x86_64)
 # root@container-student-20250707150626:~#
 ```
+<img width="569" alt="Screenshot 2025-07-07 at 3 27 38 PM" src="https://github.com/user-attachments/assets/a668d918-ecff-4e2a-8f80-0648fa65f720" />
+
+
 
 **Αποδεικνύει:**
 - Επιτυχή SSH authentication

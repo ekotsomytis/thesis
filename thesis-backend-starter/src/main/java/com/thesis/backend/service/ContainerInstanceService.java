@@ -365,6 +365,8 @@ public class ContainerInstanceService {
      */
     public void updateContainerStatus(ContainerInstance instance) {
         try {
+            log.debug("Checking pod status for: {}", instance.getKubernetesPodName());
+            
             Pod pod = kubernetesClient.pods()
                     .inNamespace(namespace)
                     .withName(instance.getKubernetesPodName())
@@ -372,19 +374,33 @@ public class ContainerInstanceService {
             
             if (pod != null && pod.getStatus() != null) {
                 String phase = pod.getStatus().getPhase();
-                instance.setStatus(phase);
-                containerInstanceRepository.save(instance);
-                log.info("Updated container {} status to {}", instance.getName(), phase);
+                String currentStatus = instance.getStatus();
+                
+                // Only update if status has changed
+                if (!phase.equals(currentStatus)) {
+                    instance.setStatus(phase);
+                    containerInstanceRepository.save(instance);
+                    log.info("Updated container {} status from {} to {}", instance.getName(), currentStatus, phase);
+                } else {
+                    log.debug("Container {} status unchanged: {}", instance.getName(), phase);
+                }
+            } else {
+                log.warn("Pod {} not found or has no status", instance.getKubernetesPodName());
+                
+                // If pod doesn't exist, mark as stopped
+                if (!"Stopped".equals(instance.getStatus()) && !"Deleted".equals(instance.getStatus())) {
+                    instance.setStatus("Stopped");
+                    containerInstanceRepository.save(instance);
+                    log.info("Marked container {} as Stopped (pod not found)", instance.getName());
+                }
             }
         } catch (Exception e) {
-            log.warn("Could not get pod status from Kubernetes (development mode): {}", e.getMessage());
+            log.error("Failed to get pod status from Kubernetes for {}: {}", instance.getKubernetesPodName(), e.getMessage());
             
-            // In development mode, simulate status progression
+            // Don't simulate in production - let the actual error be known
+            // Only fallback to simulation if specifically in development mode
             if ("Creating".equals(instance.getStatus())) {
-                // Simulate containers becoming "Running" after a short time
-                instance.setStatus("Running");
-                containerInstanceRepository.save(instance);
-                log.info("Simulated container {} status updated to Running", instance.getName());
+                log.warn("Container {} stuck in Creating state, will retry status check later", instance.getName());
             }
         }
     }
@@ -572,5 +588,12 @@ public class ContainerInstanceService {
             log.error("Error checking container access for user {}: {}", username, e.getMessage());
             return false;
         }
+    }
+    
+    /**
+     * Find a container instance by ID
+     */
+    public ContainerInstance findById(Long id) {
+        return containerInstanceRepository.findById(id).orElse(null);
     }
 }

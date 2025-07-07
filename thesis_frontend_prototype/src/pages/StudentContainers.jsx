@@ -24,6 +24,44 @@ export default function StudentContainers() {
     loadData();
   }, []);
 
+  // Auto-refresh containers every 30 seconds
+  useEffect(() => {
+    if (!user?.token) return;
+    
+    const interval = setInterval(() => {
+      refreshContainerStatuses();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const refreshContainerStatuses = async () => {
+    try {
+      if (user && user.token) {
+        api.setToken(user.token);
+      }
+      
+      // First, call the backend to refresh statuses from Kubernetes (only for teachers)
+      if (isTeacher()) {
+        try {
+          await api.refreshAllContainerStatuses();
+          console.log('Called refresh endpoint to update statuses from Kubernetes');
+        } catch (refreshError) {
+          console.warn('Failed to call refresh endpoint:', refreshError);
+          // Continue anyway to get current data
+        }
+      }
+      
+      // Then fetch the updated data
+      const containersData = isTeacher() ? await api.getAllContainers() : await api.getMyContainers();
+      setContainers(containersData || []);
+      console.log('Container statuses refreshed:', containersData?.length || 0);
+    } catch (error) {
+      console.error('Failed to refresh container statuses:', error);
+      // Don't show toast for auto-refresh errors to avoid spam
+    }
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -168,6 +206,16 @@ export default function StudentContainers() {
     } catch (error) {
       console.error('Failed to get SSH info:', error);
       toast.error('Failed to get SSH information: ' + error.message);
+    }
+  };
+
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Copied to clipboard!');
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      toast.error('Failed to copy to clipboard');
     }
   };
 
@@ -411,8 +459,8 @@ export default function StudentContainers() {
       {/* SSH Info Modal */}
       {showSshModal && selectedContainer && sshInfo && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">SSH Connection Info</h2>
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">SSH Connection Instructions</h2>
             
             <div className="space-y-4">
               <div className="bg-gray-50 p-4 rounded-md">
@@ -420,7 +468,7 @@ export default function StudentContainers() {
                 <p className="text-sm text-gray-600 mb-2">Image: {sshInfo.dockerImage}</p>
                 
                 {sshInfo.ready ? (
-                  <div className="space-y-2">
+                  <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div><strong>Host:</strong> {sshInfo.host}</div>
                       <div><strong>Port:</strong> {sshInfo.port}</div>
@@ -429,17 +477,122 @@ export default function StudentContainers() {
                     </div>
                     
                     <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
-                      <p className="text-sm text-blue-800">
-                        <strong>SSH Command:</strong>
+                      <p className="text-sm font-medium text-blue-800 mb-2">
+                        <strong>Method 1: Direct Connection</strong> 
+                        <span className="text-xs text-blue-600 ml-2">(Port {sshInfo.port} - assigned by Kubernetes)</span>
                       </p>
-                      <code className="text-xs bg-blue-100 p-1 rounded block mt-1">
-                        ssh -p {sshInfo.port} {sshInfo.username}@{sshInfo.host}
-                      </code>
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs bg-blue-100 p-2 rounded flex-1">
+                          ssh -p {sshInfo.port} {sshInfo.username}@{sshInfo.host}
+                        </code>
+                        <Button
+                          onClick={() => copyToClipboard(`ssh -p ${sshInfo.port} ${sshInfo.username}@${sshInfo.host}`)}
+                          className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Copy
+                        </Button>
+                      </div>
+                      <p className="text-xs text-blue-700 mt-2">
+                        ⚠️ May not work on macOS due to Docker/Minikube networking limitations
+                      </p>
                     </div>
+                    
+                    {sshInfo.portForwardCommand && (
+                      <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded">
+                        <p className="text-sm font-medium text-green-800 mb-3">
+                          <strong>Method 2: Port Forward (Recommended)</strong>
+                          <span className="text-xs text-green-600 ml-2">(Uses local port 8023 for convenience)</span>
+                        </p>
+                        
+                        {/* Port explanation */}
+                        {sshInfo.portExplanation && (
+                          <div className="mb-4 p-2 bg-gray-50 border border-gray-200 rounded">
+                            <p className="text-xs font-medium text-gray-700 mb-2">🔍 Why Different Ports?</p>
+                            <div className="space-y-1 text-xs text-gray-600">
+                              <div>• <strong>Port {sshInfo.port}:</strong> {sshInfo.portExplanation.nodePort}</div>
+                              <div>• <strong>Port 8023:</strong> {sshInfo.portExplanation.localPort}</div>
+                              <div>• <strong>Reason:</strong> {sshInfo.portExplanation.why}</div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Step-by-step instructions */}
+                        {sshInfo.stepByStepInstructions && (
+                          <div className="space-y-3 mb-4">
+                            <p className="text-xs font-medium text-green-700">📋 Step-by-Step Instructions:</p>
+                            {Object.entries(sshInfo.stepByStepInstructions).map(([step, instruction]) => (
+                              <div key={step} className="text-xs text-green-700">
+                                <strong>{step.replace('step', 'Step ')}:</strong> {instruction}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Command boxes */}
+                        <div className="space-y-2">
+                          <div>
+                            <p className="text-xs text-green-700 mb-1">🔌 Port Forward Command (Run in Terminal 1):</p>
+                            <div className="flex items-center gap-2">
+                              <code className="text-xs bg-green-100 p-2 rounded flex-1">
+                                {sshInfo.portForwardCommand}
+                              </code>
+                              <Button
+                                onClick={() => copyToClipboard(sshInfo.portForwardCommand)}
+                                className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                Copy
+                              </Button>
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-xs text-green-700 mb-1">🔐 SSH Command (Run in Terminal 2):</p>
+                            <div className="flex items-center gap-2">
+                              <code className="text-xs bg-green-100 p-2 rounded flex-1">
+                                {sshInfo.portForwardSsh}
+                              </code>
+                              <Button
+                                onClick={() => copyToClipboard(sshInfo.portForwardSsh)}
+                                className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                Copy
+                              </Button>
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-xs text-green-700 mb-1">🔑 Password:</p>
+                            <div className="flex items-center gap-2">
+                              <code className="text-xs bg-green-100 p-2 rounded flex-1">
+                                {sshInfo.password}
+                              </code>
+                              <Button
+                                onClick={() => copyToClipboard(sshInfo.password)}
+                                className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                Copy
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Troubleshooting section */}
+                        {sshInfo.troubleshooting && (
+                          <div className="mt-4 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                            <p className="text-xs font-medium text-yellow-800 mb-2">🔧 Troubleshooting:</p>
+                            <div className="space-y-1">
+                              {Object.entries(sshInfo.troubleshooting).map(([issue, solution]) => (
+                                <div key={issue} className="text-xs text-yellow-700">
+                                  <strong>{issue.replace(/([A-Z])/g, ' $1').toLowerCase()}:</strong> {solution}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     
                     <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
                       <p className="text-xs text-yellow-800">
-                        {sshInfo.instructions}
+                        <strong>Note:</strong> {sshInfo.alternativeNote || sshInfo.note}
                       </p>
                     </div>
                   </div>
@@ -454,6 +607,35 @@ export default function StudentContainers() {
             </div>
 
             <div className="flex gap-2 mt-6">
+              {sshInfo?.ready && sshInfo.portForwardCommand && (
+                <Button
+                  onClick={() => copyToClipboard(`# SSH Connection Instructions for Container: ${selectedContainer.name}
+
+# Step-by-Step Instructions:
+# 1. Open a terminal/command prompt
+# 2. Run the port-forward command below (keep this terminal open)
+# 3. Open a new terminal window
+# 4. Run the SSH command below
+# 5. Enter the password when prompted
+
+# === TERMINAL 1: Port Forwarding (Keep this running) ===
+${sshInfo.portForwardCommand}
+
+# === TERMINAL 2: SSH Connection ===
+${sshInfo.portForwardSsh}
+
+# === Password ===
+# When prompted, enter: ${sshInfo.password}
+
+# === Troubleshooting ===
+# - Make sure Terminal 1 is still running the port-forward command
+# - If port 8023 is in use, try changing it to 8024:22 in both commands
+# - Make sure kubectl is installed and configured`)}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Copy All Commands
+                </Button>
+              )}
               <Button
                 onClick={() => setShowSshModal(false)}
                 className="bg-gray-600 hover:bg-gray-700 text-white flex-1"

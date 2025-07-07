@@ -275,6 +275,19 @@ class ApiService {
     return await this.request(`/containers/${id}/ssh-info`);
   }
 
+  // Container status refresh methods
+  async refreshContainerStatus(id) {
+    return await this.request(`/containers/${id}/refresh-status`, {
+      method: 'POST'
+    });
+  }
+
+  async refreshAllContainerStatuses() {
+    return await this.request('/containers/refresh-all-statuses', {
+      method: 'POST'
+    });
+  }
+
   // SSH Connection endpoints
   async createSshConnection(containerInstanceId) {
     return await this.request(`/ssh/connect/${containerInstanceId}`, {

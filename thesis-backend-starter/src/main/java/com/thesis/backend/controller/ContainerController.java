@@ -140,37 +140,63 @@ public class ContainerController {
         }
     }
     
+    /**
+     * Refresh status of a specific container
+     */
     @PostMapping("/{id}/refresh-status")
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<?> refreshContainerStatus(@PathVariable Long id) {
+    @PreAuthorize("hasAnyRole('STUDENT', 'TEACHER', 'ADMIN')")
+    public ResponseEntity<ContainerInstance> refreshContainerStatus(@PathVariable Long id, @AuthenticationPrincipal User user) {
         try {
-            ContainerInstance container = containerRepo.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Container not found"));
-            
-            // Update container status
-            containerInstanceService.updateContainerStatus(container);
-            
-            return ResponseEntity.ok(container);
-        } catch (Exception e) {
-            log.error("Failed to refresh container status", e);
-            return ResponseEntity.badRequest().body("Failed to refresh status: " + e.getMessage());
-        }
-    }
-    
-    @PostMapping("/refresh-all-statuses")
-    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<?> refreshAllContainerStatuses() {
-        try {
-            List<ContainerInstance> containers = containerRepo.findAll();
-            
-            for (ContainerInstance container : containers) {
-                containerInstanceService.updateContainerStatus(container);
+            ContainerInstance container = containerInstanceService.findById(id);
+            if (container == null) {
+                return ResponseEntity.notFound().build();
             }
             
-            return ResponseEntity.ok(Map.of("updated", containers.size()));
+            // Check if user can access this container
+            if ("ROLE_STUDENT".equals(user.getRole()) && !container.getOwner().getId().equals(user.getId())) {
+                return ResponseEntity.status(403).build();
+            }
+            
+            // Refresh the status from Kubernetes
+            containerInstanceService.updateContainerStatus(container);
+            
+            // Return the updated container
+            ContainerInstance updated = containerInstanceService.findById(id);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            log.error("Failed to refresh container status for container ID: {}", id, e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Refresh all container statuses
+     */
+    @PostMapping("/refresh-all-statuses")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ResponseEntity<Map<String, Object>> refreshAllContainerStatuses() {
+        try {
+            List<ContainerInstance> containers = containerInstanceService.getAllContainers();
+            int updated = 0;
+            
+            for (ContainerInstance container : containers) {
+                try {
+                    containerInstanceService.updateContainerStatus(container);
+                    updated++;
+                } catch (Exception e) {
+                    log.warn("Failed to update status for container {}: {}", container.getName(), e.getMessage());
+                }
+            }
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("totalContainers", containers.size());
+            result.put("updatedContainers", updated);
+            result.put("message", "Status refresh completed");
+            
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Failed to refresh all container statuses", e);
-            return ResponseEntity.badRequest().body("Failed to refresh statuses: " + e.getMessage());
+            return ResponseEntity.internalServerError().build();
         }
     }
     
@@ -199,8 +225,41 @@ public class ContainerController {
                 sshInfo.put("password", "student123");
                 sshInfo.put("dockerImage", "thesis-ssh-container:latest");
                 sshInfo.put("ready", true);
+                
+                // Provide both direct and port-forward instructions
                 sshInfo.put("instructions", "Connect using: ssh -p " + sshPort + " root@" + minikubeIp);
                 sshInfo.put("note", "This connects to a real SSH-enabled container running in Minikube");
+                
+                // Add port-forward instructions for better compatibility
+                String serviceName = container.getKubernetesPodName() + "-ssh";
+                int localPort = 8023; // You can change this to any available port
+                sshInfo.put("portForwardCommand", "kubectl port-forward service/" + serviceName + " " + localPort + ":22");
+                sshInfo.put("portForwardSsh", "ssh -p " + localPort + " root@127.0.0.1");
+                sshInfo.put("alternativeNote", "If direct connection fails (common on macOS), use port forwarding method below");
+                
+                // Add port explanations
+                sshInfo.put("portExplanation", Map.of(
+                    "nodePort", "Port " + sshPort + " is assigned by Kubernetes (NodePort) - this changes with each container",
+                    "localPort", "Port " + localPort + " is a local port we choose for convenience - you can use any free port",
+                    "why", "Different ports serve different purposes: NodePort for direct access, local port for tunneling"
+                ));
+                
+                // Add step-by-step instructions for better user experience
+                sshInfo.put("stepByStepInstructions", Map.of(
+                    "step1", "Open a terminal/command prompt",
+                    "step2", "Run the port-forward command: kubectl port-forward service/" + serviceName + " " + localPort + ":22",
+                    "step3", "Open a new terminal window (keep the first one running)",
+                    "step4", "Connect via SSH: ssh -p " + localPort + " root@127.0.0.1",
+                    "step5", "Enter password when prompted: student123"
+                ));
+                
+                // Add troubleshooting tips
+                sshInfo.put("troubleshooting", Map.of(
+                    "connectionRefused", "Make sure the port-forward command is running in a separate terminal",
+                    "passwordFailed", "Use password: student123 (case sensitive)",
+                    "commandNotFound", "Make sure kubectl is installed and configured for your cluster",
+                    "portInUse", "Try a different port like 8024:22 instead of 8023:22"
+                ));
             } else {
                 sshInfo.put("ready", false);
                 sshInfo.put("message", "Container is not running yet. Please wait for it to start.");

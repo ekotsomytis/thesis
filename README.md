@@ -135,13 +135,14 @@ docker build -t thesis-frontend:latest ./thesis_frontend_prototype
 
 ```bash
 # Database
+kubectl apply -f mariadb-init-configmap.yaml
 kubectl apply -f mariadb-deployment.yaml
 
 # Backend
 kubectl apply -f thesis-backend-starter/backend-deployment.yaml
 
 # Frontend
-kubectl apply -f frontend-deployment.yaml
+kubectl apply -f thesis_frontend_prototype/k8s-deployment.yaml
 ```
 
 Μετά το deployment, πάρτε τα NodePort URLs:

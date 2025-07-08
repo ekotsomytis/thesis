@@ -52,7 +52,7 @@ thesis/
 │   ├── src/main/resources/   # Configuration files
 │   ├── build.gradle          # Dependencies & build config
 │   ├── Dockerfile.ssh        # SSH-enabled Docker image
-│   └── k8s-deployment.yaml   # Kubernetes deployment
+│   └── backend-deployment.yaml   # Kubernetes deployment
 ├── thesis_frontend_prototype/ # React Frontend
 │   ├── src/                  # React components & pages
 │   ├── public/               # Static assets

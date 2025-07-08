@@ -127,8 +127,10 @@ eval $(minikube docker-env)
 # Backend API image
 docker build -t thesis-backend:latest ./thesis-backend-starter
 
-# Frontend React image
-docker build -t thesis-frontend:latest ./thesis_frontend_prototype
+# Frontend React image (πέρασμα του API URL στο build)
+docker build \
+  --build-arg REACT_APP_API_BASE_URL=http://thesis-backend-service:8080/api \
+  -t thesis-frontend:latest ./thesis_frontend_prototype
 ```
 
 ### 7. Deployment στο Minikube

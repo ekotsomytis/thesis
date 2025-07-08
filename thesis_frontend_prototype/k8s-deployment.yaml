@@ -1,10 +1,3 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: frontend-config
-data:
-  REACT_APP_API_BASE_URL: http://thesis-backend-service:8080/api
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -23,12 +16,6 @@ spec:
         - name: thesis-frontend
           image: thesis-frontend:latest
           imagePullPolicy: Never
-          env:
-            - name: REACT_APP_API_BASE_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: frontend-config
-                  key: REACT_APP_API_BASE_URL
           ports:
             - containerPort: 80
 ---
@@ -44,4 +31,3 @@ spec:
     - port: 80
       targetPort: 80
       nodePort: 30008
-      

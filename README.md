@@ -128,8 +128,10 @@ eval $(minikube docker-env)
 docker build -t thesis-backend:latest ./thesis-backend-starter
 
 # Frontend React image (πέρασμα του API URL στο build)
+# Χρησιμοποιούμε το NodePort URL για να είναι προσβάσιμο από τον browser
+BACKEND_URL=$(minikube service thesis-backend-service --url)
 docker build \
-  --build-arg REACT_APP_API_BASE_URL=http://thesis-backend-service:8080/api \
+  --build-arg REACT_APP_API_BASE_URL=${BACKEND_URL}/api \
   -t thesis-frontend:latest ./thesis_frontend_prototype
 ```
 

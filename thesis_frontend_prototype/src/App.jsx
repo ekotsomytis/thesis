@@ -9,6 +9,8 @@ import ContainerTemplates from "./pages/ContainerTemplates";
 import StudentContainers from "./pages/StudentContainers";
 import StudentContainerManagement from "./pages/StudentContainerManagement";
 import KubernetesManagement from "./pages/KubernetesManagement";
+import ImageTemplateBuilder from "./pages/ImageTemplateBuilder";
+import ImageTemplateManagement from "./pages/ImageTemplateManagement";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -56,6 +58,16 @@ function App() {
             <Route path="/kubernetes" element={
               <ProtectedRoute requireRole="ROLE_TEACHER">
                 <KubernetesManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/image-builder" element={
+              <ProtectedRoute requireRole="ROLE_TEACHER">
+                <ImageTemplateBuilder />
+              </ProtectedRoute>
+            } />
+            <Route path="/image-management" element={
+              <ProtectedRoute requireRole="ROLE_TEACHER">
+                <ImageTemplateManagement />
               </ProtectedRoute>
             } />
           </Route>

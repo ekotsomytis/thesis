@@ -20,11 +20,19 @@ spec:
             - containerPort: 8080
           env:
             - name: SPRING_DATASOURCE_URL
-              value: jdbc:mariadb://mariadb:3306/thesisdb
+              value: jdbc:h2:mem:testdb
+            - name: SPRING_DATASOURCE_DRIVERCLASSNAME
+              value: org.h2.Driver
             - name: SPRING_DATASOURCE_USERNAME
-              value: thesisuser
+              value: sa
             - name: SPRING_DATASOURCE_PASSWORD
-              value: thesispass
+              value: password
+            - name: SPRING_JPA_DATABASE_PLATFORM
+              value: org.hibernate.dialect.H2Dialect
+            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+              value: create-drop
+            - name: SPRING_H2_CONSOLE_ENABLED
+              value: "true"
 ---
 apiVersion: v1
 kind: Service

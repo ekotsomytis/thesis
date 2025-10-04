@@ -37,14 +37,9 @@
 - **Φοιτητές**: Πρόσβαση στα δικά τους containers, SSH σύνδεση με αντιγραφή εντολών
 - **Διαχειριστές**: Πλήρη διαχείριση χρηστών και containers
 
-### Open issues (Τα χρειαζόμαστε;)
-- Actual delete pods if needed (in progress)
-- Admin role 
-- New template creation + new students, υπάρχουν προκαθορισμένοι χρήστες στα πλαίσια του demo.
-
 ---
 
-## 📁 Δομή Project
+## Δομή Project
 ```
 thesis/
 ├── thesis-backend-starter/    # Spring Boot Backend
@@ -58,7 +53,6 @@ thesis/
 │   ├── public/               # Static assets
 │   ├── package.json          # Dependencies
 │   └── build/                # Production build
-├── mariadb-*.yaml            # Database configurations
 ├── *.sql                     # Database initialization scripts
 └── README.md                 # Αυτό το αρχείο
 ```
@@ -167,7 +161,25 @@ ssh -p 8023 root@127.0.0.1
 
 Η εφαρμογή παρέχει αυτόματα αντιγραφή όλων των εντολών με κουμπιά "Copy"!
 
-## 🔍 Έλεγχος Κατάστασης
+### ✅ Επιτυχημένη SSH Σύνδεση
+
+Όπως φαίνεται στο demo, οι φοιτητές επιτυγχάνουν πλήρη πρόσβαση στο Ubuntu περιβάλλον:
+
+```bash
+ssh -p 8023 root@127.0.0.1
+# Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 6.10.14-linuxkit x86_64)
+# root@container-student-20250707150626:~#
+```
+
+**Διαθέσιμα εργαλεία στο container:**
+- 🐧 Ubuntu 20.04.6 LTS 
+- 🛠️ Standard Linux utilities
+- 📦 Package manager (apt)
+- 🔧 Development tools
+- 📝 Text editors (nano, vi)
+- 🌐 Network utilities
+
+## Έλεγχος Κατάστασης
 
 ### Backend Status
 ```bash
@@ -236,7 +248,7 @@ kubectl logs [pod-name]
 ssh -p [port] -o ConnectTimeout=5 root@[host]
 ```
 
-## 📋 Troubleshooting
+## Troubleshooting
 
 ### Συνήθη Προβλήματα:
 
@@ -268,28 +280,39 @@ ssh -p [port] -o ConnectTimeout=5 root@[host]
    minikube stop && minikube start
    eval $(minikube docker-env)
    ```
+---
 
-## 📖 API Documentation
+## 🌐 API Endpoints
 
-### Authentication Endpoints
-- `POST /api/auth/login` - Σύνδεση χρήστη
-- `GET /api/auth/test` - Έλεγχος authentication
+Base URL: `http://localhost:8080/api`
 
-### Container Management
-- `GET /api/containers/my-containers` - Containers του χρήστη
-- `POST /api/containers/create-for-student` - Δημιουργία container (καθηγητές)
-- `GET /api/containers/{id}/ssh-info` - SSH πληροφορίες
-- `POST /api/containers/{id}/refresh-status` - Ανανέωση κατάστασης
+### Authentication
+- `POST /auth/login` - Get JWT token
+- `POST /auth/register` - Register new user
 
-### Image Templates
-- `GET /api/images` - Διαθέσιμα templates
+### Containers
+- `GET /containers` - List all (teacher/admin)
+- `GET /containers/my-containers` - List my containers (student)
+- `POST /containers/create-for-self` - Create container (student)
+- `POST /containers/create-for-student` - Create for student (teacher)
+- `POST /containers/{id}/start` - Start container
+- `POST /containers/{id}/stop` - Stop container
+- `DELETE /containers/{id}` - Delete container
+- `GET /containers/{id}/ssh-info` - Get SSH connection details
+
+### Templates
+- `GET /images` - List all image templates
+
+### Kubernetes
+- `GET /kubernetes/namespaces` - List namespaces
+- `POST /kubernetes/namespaces` - Create namespace
 
 ---
 
 ## 📺 Demo & Screenshots
 
 ### 🎬 Βίντεο Παρουσίασης
-**[Educational Container Platform - Full Demo](https://drive.google.com/file/d/1fdohHMIUZMHQjFXh8YItTLzdNB3PBgPy/view?usp=sharing)**
+**[Educational Container Platform - Full Demo](https://drive.google.com/file/d/1ex4Yj7URlAs-z2xAwkDZEHh0V9mTIueS/view?usp=sharing)**
 
 **Περιεχόμενο Demo:**
 1. 🔐 Login ως καθηγητής και φοιτητής
@@ -307,14 +330,8 @@ ssh -p 8023 root@127.0.0.1
 # Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 6.10.14-linuxkit x86_64)
 # root@container-student-20250707150626:~#
 ```
+
 <img width="569" alt="Screenshot 2025-07-07 at 3 27 38 PM" src="https://github.com/user-attachments/assets/a668d918-ecff-4e2a-8f80-0648fa65f720" />
-
-
-
-**Αποδεικνύει:**
-- Επιτυχή SSH authentication
-- Πλήρη shell access
-- Ubuntu 20.04.6 LTS environment
-- Root privileges για educational purposes
-  Network connectivity μέσω port forwarding
+<img width="567" height="60" alt="Screenshot 2025-10-04 at 12 34 17 PM" src="https://github.com/user-attachments/assets/ebf0dbb2-eb1e-4a18-99b2-64d25c6ab851" />
+<img width="799" height="100" alt="Screenshot 2025-10-04 at 12 32 06 PM" src="https://github.com/user-attachments/assets/bf897b17-1e5c-4f12-b558-a626759b89d8" />
 

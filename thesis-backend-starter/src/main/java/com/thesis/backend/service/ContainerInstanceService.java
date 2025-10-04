@@ -40,6 +40,7 @@ public class ContainerInstanceService {
     private final ImageTemplateRepository imageTemplateRepository;
     private final UserRepository userRepository;
     private final KubernetesClient kubernetesClient;
+    private final NamespaceService namespaceService;
     
     @Value("${ssh.container.namespace:default}")
     private String namespace;
@@ -148,6 +149,13 @@ public class ContainerInstanceService {
     }
     
     /**
+     * Get all containers owned by a specific user
+     */
+    public List<ContainerInstance> getContainersByOwner(User owner) {
+        return containerInstanceRepository.findByOwner(owner);
+    }
+    
+    /**
      * Stop a container
      */
     public void stopContainer(Long instanceId, User user) {
@@ -236,12 +244,28 @@ public class ContainerInstanceService {
         }
         
         try {
-            return kubernetesClient.pods()
-                    .inNamespace(namespace)
+            // Get the correct namespace for the container
+            String containerNamespace = instance.getOwner() != null && instance.getOwner().getKubernetesNamespace() != null
+                    ? instance.getOwner().getKubernetesNamespace()
+                    : namespace;
+            
+            log.info("Fetching logs for pod {} in namespace {}", instance.getKubernetesPodName(), containerNamespace);
+            
+            String logs = kubernetesClient.pods()
+                    .inNamespace(containerNamespace)
                     .withName(instance.getKubernetesPodName())
                     .getLog();
+            
+            if (logs == null || logs.isEmpty()) {
+                return "No logs available yet. Container may still be starting...";
+            }
+            
+            return logs;
         } catch (Exception e) {
-            log.error("Failed to get logs for container {}: {}", instance.getName(), e.getMessage());
+            log.error("Failed to get logs for container {} in namespace {}: {}", 
+                    instance.getName(), 
+                    instance.getOwner() != null ? instance.getOwner().getKubernetesNamespace() : "unknown",
+                    e.getMessage());
             return "Failed to retrieve logs: " + e.getMessage();
         }
     }
@@ -424,11 +448,21 @@ public class ContainerInstanceService {
      */
     private String createSimpleKubernetesPod(ImageTemplate imageTemplate, String containerName, User student) {
         try {
+            // Get or create student namespace
+            String studentNamespace = namespaceService.getOrCreateStudentNamespace(student);
+            
+            // Update user's namespace if not set
+            if (student.getKubernetesNamespace() == null || !student.getKubernetesNamespace().equals(studentNamespace)) {
+                student.setKubernetesNamespace(studentNamespace);
+                userRepository.save(student);
+            }
+            
             Map<String, String> labels = new HashMap<>();
             labels.put("app", containerName);
             labels.put("owner", student.getUsername());
             labels.put("type", "student-container");
             labels.put("ssh-enabled", "true");
+            labels.put("managed-by", "thesis-platform");
             
             // Create a container with SSH enabled using our custom SSH image
             Container container = new ContainerBuilder()
@@ -460,11 +494,11 @@ public class ContainerInstanceService {
                     .endResources()
                     .build();
             
-            // Build the pod
+            // Build the pod in student's namespace
             Pod pod = new PodBuilder()
                     .withNewMetadata()
                         .withName(containerName)
-                        .withNamespace(namespace)
+                        .withNamespace(studentNamespace)
                         .withLabels(labels)
                     .endMetadata()
                     .withNewSpec()
@@ -473,14 +507,14 @@ public class ContainerInstanceService {
                     .endSpec()
                     .build();
             
-            // Create the pod
-            kubernetesClient.pods().inNamespace(namespace).resource(pod).create();
+            // Create the pod in student's namespace
+            kubernetesClient.pods().inNamespace(studentNamespace).resource(pod).create();
             
-            // Create NodePort service for SSH access
-            createNodePortService(containerName, labels);
+            // Create NodePort service for SSH access in student's namespace
+            createNodePortService(containerName, labels, studentNamespace);
             
-            log.info("Created Kubernetes pod {} with SSH-enabled image for student {}", 
-                    containerName, student.getUsername());
+            log.info("Created Kubernetes pod {} with SSH-enabled image for student {} in namespace {}", 
+                    containerName, student.getUsername(), studentNamespace);
                     
         } catch (Exception e) {
             // Log the actual error for debugging
@@ -495,7 +529,7 @@ public class ContainerInstanceService {
     /**
      * Create NodePort service for SSH access to a container
      */
-    private void createNodePortService(String containerName, Map<String, String> labels) {
+    private void createNodePortService(String containerName, Map<String, String> labels, String targetNamespace) {
         try {
             // Calculate a unique NodePort (30000-32767 range in Kubernetes)
             int nodePort = 30000 + Math.abs(containerName.hashCode() % 2767);
@@ -503,7 +537,7 @@ public class ContainerInstanceService {
             io.fabric8.kubernetes.api.model.Service service = new ServiceBuilder()
                     .withNewMetadata()
                         .withName(containerName + "-ssh")
-                        .withNamespace(namespace)
+                        .withNamespace(targetNamespace)
                         .withLabels(labels)
                     .endMetadata()
                     .withNewSpec()
@@ -519,11 +553,12 @@ public class ContainerInstanceService {
                     .endSpec()
                     .build();
             
-            kubernetesClient.services().inNamespace(namespace).resource(service).create();
+            kubernetesClient.services().inNamespace(targetNamespace).resource(service).create();
             
-            log.info("Created NodePort service {}-ssh with port {} for SSH access", containerName, nodePort);
+            log.info("Created NodePort service {}-ssh with port {} for SSH access in namespace {}", 
+                containerName, nodePort, targetNamespace);
         } catch (Exception e) {
-            log.warn("Could not create NodePort service for SSH access (development mode): {}", e.getMessage());
+            log.warn("Could not create NodePort service for SSH access: {}", e.getMessage());
         }
     }
 
@@ -531,9 +566,17 @@ public class ContainerInstanceService {
      * Get the NodePort assigned to a container's SSH service
      */
     public Integer getContainerSshPort(String containerName) {
+        // For backward compatibility, try default namespace first
+        return getContainerSshPort(containerName, namespace);
+    }
+    
+    /**
+     * Get the NodePort assigned to a container's SSH service in specific namespace
+     */
+    public Integer getContainerSshPort(String containerName, String targetNamespace) {
         try {
             io.fabric8.kubernetes.api.model.Service service = kubernetesClient.services()
-                    .inNamespace(namespace)
+                    .inNamespace(targetNamespace)
                     .withName(containerName + "-ssh")
                     .get();
             
@@ -541,7 +584,8 @@ public class ContainerInstanceService {
                 return service.getSpec().getPorts().get(0).getNodePort();
             }
         } catch (Exception e) {
-            log.warn("Could not get NodePort for container {} (development mode): {}", containerName, e.getMessage());
+            log.warn("Could not get NodePort for container {} in namespace {}: {}", 
+                containerName, targetNamespace, e.getMessage());
         }
         
         // Fallback: calculate the same port we would have assigned

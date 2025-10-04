@@ -23,6 +23,7 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
     runtimeOnly 'org.mariadb.jdbc:mariadb-java-client:3.1.2'
     runtimeOnly 'com.h2database:h2:2.1.214'
+    runtimeOnly 'org.postgresql:postgresql:42.5.4'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'com.h2database:h2:2.1.214'
     compileOnly 'org.projectlombok:lombok:1.18.30'

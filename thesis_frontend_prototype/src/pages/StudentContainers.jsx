@@ -71,14 +71,22 @@ export default function StudentContainers() {
         api.setToken(user.token);
       }
       
+      console.log('🔍 StudentContainers: Starting to load data...');
+      
       const [containersResponse, templatesResponse] = await Promise.all([
-        isTeacher() ? api.getAllContainers() : api.getMyContainers(),
+        api.getMyContainers(),
         api.getImageTemplates() // Use ImageTemplates instead of ContainerTemplates
       ]);
       
+      console.log('✅ StudentContainers: Loaded containers:', containersResponse);
+      console.log('✅ StudentContainers: Loaded templates:', templatesResponse);
+      console.log('   Templates count:', templatesResponse?.length || 0);
+      console.log('   Templates type:', typeof templatesResponse);
+      console.log('   Is array?:', Array.isArray(templatesResponse));
+      
       setContainers(containersResponse || []);
       setTemplates(templatesResponse || []);
-      
+
       console.log('Loaded containers:', containersResponse);
       console.log('Loaded templates:', templatesResponse);
       
@@ -257,17 +265,10 @@ export default function StudentContainers() {
         <h1 className="text-2xl font-bold">
           {isTeacher() ? "All Student Containers" : "My Containers"}
         </h1>
-        {!isTeacher() && (
-          <Button 
-            onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            Create New Container
-          </Button>
-        )}
       </div>
 
-      {/* Create Container Modal */}
+      {/* Note: Students cannot create containers directly. Only teachers can create containers for students. */}
+      {/* Create Container Modal - Removed for students */}
       {showCreateModal && (
         <Card>
           <CardHeader>
@@ -391,7 +392,7 @@ export default function StudentContainers() {
             <div className="text-gray-500">
               {isTeacher() 
                 ? "No student containers found."
-                : "No containers found. Create your first container to get started."
+                : "No containers found. Your teacher will create containers for you."
               }
             </div>
           </CardContent>

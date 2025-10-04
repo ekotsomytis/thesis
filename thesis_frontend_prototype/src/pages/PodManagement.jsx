@@ -32,10 +32,10 @@ export default function PodManagement() {
         setContainers(containersResponse || []);
         setTemplates(templatesResponse || []);
       } else {
-        // Students see only their containers and SSH-enabled templates
+        // Students see only their containers and image templates
         const [containersResponse, templatesResponse] = await Promise.all([
           api.getMyContainers(),
-          api.getSshEnabledTemplates()
+          api.getImageTemplates()
         ]);
         setContainers(containersResponse || []);
         setTemplates(templatesResponse || []);

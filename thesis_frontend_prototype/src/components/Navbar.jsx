@@ -5,7 +5,7 @@ import { toast } from "react-hot-toast";
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, isTeacher, isStudent } = useAuth();
+  const { user, logout, isTeacher, isStudent, isAdmin } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -14,6 +14,8 @@ export default function Navbar() {
   };
 
   const getRoleDisplay = () => {
+    if (user?.role === 'ROLE_SUPER_ADMIN') return "Super Admin";
+    if (user?.role === 'ROLE_ADMIN') return "Admin";
     if (isTeacher()) return "Teacher";
     if (isStudent()) return "Student";
     return "User";
@@ -32,6 +34,19 @@ export default function Navbar() {
           </Link>
         </li>
         
+        {/* Admin-specific navigation */}
+        {isAdmin() && (
+          <li className="mr-6">
+            <Link
+              to="/admin/users"
+              className={`hover:text-gray-300 ${location.pathname === "/admin/users" ? "font-bold underline" : ""
+                }`}
+            >
+              User Management
+            </Link>
+          </li>
+        )}
+
         {/* Teacher-specific navigation */}
         {isTeacher() && (
           <>

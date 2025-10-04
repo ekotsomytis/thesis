@@ -264,7 +264,9 @@ class ApiService {
   }
 
   async getContainerLogs(id) {
-    return await this.request(`/containers/${id}/logs`);
+    const response = await this.request(`/containers/${id}/logs`);
+    // Backend returns {logs: "..."} format
+    return response.logs || response;
   }
 
   async getContainerStats() {
@@ -404,10 +406,13 @@ class ApiService {
 
   // Enhanced Container Instance Management
   async createContainerFromTemplate(templateId, studentId = null) {
-    const body = { templateId };
+    // If studentId is provided, teacher is creating for a student
+    // Otherwise, student is creating for themselves
+    const endpoint = studentId ? '/containers/create-for-student' : '/containers/create-for-self';
+    const body = { imageId: templateId };
     if (studentId) body.studentId = studentId;
     
-    return await this.request('/containers/create-for-student', {
+    return await this.request(endpoint, {
       method: 'POST',
       body: JSON.stringify(body)
     });
@@ -468,6 +473,31 @@ class ApiService {
     return await this.requestWithToken(endpoint, token, {
       method: 'POST',
       body: JSON.stringify(data)
+    });
+  }
+
+  // User Management (Admin only)
+  async createUser(userData) {
+    return await this.request('/users', {
+      method: 'POST',
+      body: JSON.stringify(userData)
+    });
+  }
+
+  async getUserById(userId) {
+    return await this.request(`/users/${userId}`);
+  }
+
+  async updateUser(userId, updates) {
+    return await this.request(`/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
+  }
+
+  async deleteUser(userId) {
+    return await this.request(`/users/${userId}`, {
+      method: 'DELETE'
     });
   }
 }

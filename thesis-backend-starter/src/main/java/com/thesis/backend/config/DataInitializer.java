@@ -2,6 +2,7 @@ package com.thesis.backend.config;
 
 /*
  * Development Demo Credentials:
+ * Super Admin: username="superadmin", password="SuperSecure2024!"
  * Teacher: username="teacher", password="TeachSecure2024!"
  * Student: username="student", password="StudyHard2024#"
  * Admin:   username="admin",   password="AdminPower2024$"
@@ -41,12 +42,23 @@ public class DataInitializer implements CommandLineRunner {
 
         log.info("Initializing default users...");
 
+        // Create a super admin user
+        User superAdmin = new User();
+        superAdmin.setUsername("superadmin");
+        superAdmin.setEmail("superadmin@university.edu");
+        superAdmin.setPassword(passwordEncoder.encode("SuperSecure2024!"));
+        superAdmin.setRole("ROLE_SUPER_ADMIN");
+        superAdmin.setActive(true);
+        userRepository.save(superAdmin);
+        log.info("Created super admin user: {}", superAdmin.getUsername());
+
         // Create a teacher user
         User teacher = new User();
         teacher.setUsername("teacher");
         teacher.setEmail("teacher@university.edu");
         teacher.setPassword(passwordEncoder.encode("TeachSecure2024!"));
         teacher.setRole("ROLE_TEACHER");
+        teacher.setActive(true);
         userRepository.save(teacher);
         log.info("Created teacher user: {}", teacher.getUsername());
 
@@ -56,15 +68,17 @@ public class DataInitializer implements CommandLineRunner {
         student.setEmail("student@university.edu");
         student.setPassword(passwordEncoder.encode("StudyHard2024#"));
         student.setRole("ROLE_STUDENT");
+        student.setActive(true);
         userRepository.save(student);
         log.info("Created student user: {}", student.getUsername());
 
-        // Create an admin user
+        // Create an admin user (legacy - for backward compatibility)
         User admin = new User();
         admin.setUsername("admin");
         admin.setEmail("admin@university.edu");
         admin.setPassword(passwordEncoder.encode("AdminPower2024$"));
         admin.setRole("ROLE_ADMIN");
+        admin.setActive(true);
         userRepository.save(admin);
         log.info("Created admin user: {}", admin.getUsername());
 
@@ -80,25 +94,25 @@ public class DataInitializer implements CommandLineRunner {
 
         log.info("Initializing default image templates...");
 
-        // Create sample templates
+        // Create sample templates with SSH-enabled images
         ImageTemplate pythonTemplate = ImageTemplate.builder()
                 .name("Python Development")
-                .dockerImage("python:3.9-slim")
-                .description("Python development environment with common libraries")
+                .dockerImage("thesis-ssh-container:latest")
+                .description("Ubuntu with Python development environment and SSH access")
                 .build();
         imageTemplateRepository.save(pythonTemplate);
 
         ImageTemplate nodeTemplate = ImageTemplate.builder()
                 .name("Node.js Development")
-                .dockerImage("node:16-alpine")
-                .description("Node.js development environment for web applications")
+                .dockerImage("thesis-ssh-container:latest")
+                .description("Ubuntu with Node.js development environment and SSH access")
                 .build();
         imageTemplateRepository.save(nodeTemplate);
 
         ImageTemplate ubuntuTemplate = ImageTemplate.builder()
-                .name("Ubuntu Base")
-                .dockerImage("ubuntu:22.04")
-                .description("Basic Ubuntu environment for general development")
+                .name("Ubuntu SSH")
+                .dockerImage("thesis-ssh-container:latest")
+                .description("Ubuntu 20.04 with SSH server enabled for educational purposes")
                 .build();
         imageTemplateRepository.save(ubuntuTemplate);
 

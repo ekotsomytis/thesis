@@ -32,7 +32,17 @@ public class User implements UserDetails {
     private String username;
 
     @Column(name = "role")
-    private String role;  // Will store "ROLE_TEACHER" or "ROLE_STUDENT"
+    private String role;  // Will store "ROLE_TEACHER", "ROLE_STUDENT", or "ROLE_SUPER_ADMIN"
+
+        @Column(name = "kubernetes_namespace")
+    private String kubernetesNamespace;
+    
+    @Builder.Default
+    @Column(name = "active")
+    private Boolean active = true;  // For user management
+
+    @Column(name = "created_by_admin_id")
+    private Long createdByAdminId;  // Track which admin created this user
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

@@ -317,7 +317,6 @@ Base URL: `http://localhost:8080/api`
 ### Containers
 - `GET /containers` - List all (teacher/admin)
 - `GET /containers/my-containers` - List my containers (student)
-- `POST /containers/create-for-self` - Create container (student)
 - `POST /containers/create-for-student` - Create for student (teacher)
 - `POST /containers/{id}/start` - Start container
 - `POST /containers/{id}/stop` - Stop container

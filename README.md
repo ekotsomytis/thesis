@@ -25,12 +25,10 @@
 ## Κατάσταση Έργου (07/07/2025)
 
 ### Τι έχει υλοποιηθεί:
-- ✅ **Backend (Spring Boot + Kubernetes)**: Δημιουργία πραγματικών SSH-enabled containers
-- ✅ **Frontend (React)**: Διαχείριση containers και εμφάνιση SSH οδηγιών
-- ✅ **Kubernetes Integration**: Πλήρης ενσωμάτωση με Minikube για deployment
-- ✅ **SSH Environment**: Οι φοιτητές μπορούν να συνδεθούν με SSH στα containers τους
-- ✅ **Real-time Status**: Αυτόματη ανανέωση κατάστασης containers κάθε 30 δευτερόλεπτα
-- ✅ **User Authentication**: Σύστημα εισόδου για καθηγητές και φοιτητές
+- Το σύστημα ακολουθεί ένα αρχιτεκτονικό πρότυπο τριών επιπέδων (three-tier architecture) με σαφή διαχωρισμό ευθυνών. Στον πυρήνα του, η πλατφόρμα αποτελείται από ένα backend σε Spring Boot που εκτελείται στη θύρα 8080 και λειτουργεί ως REST API layer, χειριζόμενο όλη τη λογική της εφαρμογής, την αυθεντικοποίηση και τον συντονισμό του Kubernetes.
+- Το frontend έχει υλοποιηθεί σε React και εκτελείται στη θύρα 3000, παρέχοντας ένα διαισθητικό περιβάλλον χρήστη με προβολές και ελέγχους ανά ρόλο.
+- Η αποθήκευση δεδομένων επιτυγχάνεται μέσω PostgreSQL, το οποίο εκτελείται σε Docker container και αποθηκεύει λογαριασμούς χρηστών, instances κοντέινερ, πρότυπα εικόνων (image templates) και τις μεταξύ τους σχέσεις.
+- Τα ίδια τα containerized workloads εκτελούνται σε ένα Minikube Kubernetes cluster, όπου κάθε φοιτητής λαμβάνει το δικό του απομονωμένο namespace, με RBAC πολιτικές και resource quotas που επιβάλλονται για την ασφάλεια και τη δίκαιη κατανομή πόρων.
 
 ### Λειτουργίες:
 - **Καθηγητές**: Δημιουργία containers για φοιτητές, παρακολούθηση όλων των containers
@@ -281,7 +279,43 @@ ssh -p [port] -o ConnectTimeout=5 root@[host]
    eval $(minikube docker-env)
    ```
 ---
+## 🔧 Quick Commands
 
+### Check Full System Status
+```bash
+/tmp/check_system_status.sh
+```
+
+### Inspect a Specific Student
+```bash
+./inspect_student.sh student
+```
+
+### Access PostgreSQL
+```bash
+docker exec -it thesis-postgres psql -U thesis_user -d thesis_db
+```
+
+### Check Kubernetes Resources
+```bash
+# All namespaces
+kubectl get all --all-namespaces
+
+# Specific student namespace
+kubectl get all -n student-student
+```
+
+### Test SSH Connection to Container
+```bash
+# Direct connection (using NodePort)
+ssh -p 30375 root@192.168.49.2
+
+# Port forward method
+kubectl port-forward -n student-student service/container-student-20251003221338-ssh 8023:22
+ssh -p 8023 root@127.0.0.1
+```
+
+---
 ## 🌐 API Endpoints
 
 Base URL: `http://localhost:8080/api`

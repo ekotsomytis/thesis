@@ -281,16 +281,6 @@ ssh -p [port] -o ConnectTimeout=5 root@[host]
 ---
 ## 🔧 Quick Commands
 
-### Check Full System Status
-```bash
-/tmp/check_system_status.sh
-```
-
-### Inspect a Specific Student
-```bash
-./inspect_student.sh student
-```
-
 ### Access PostgreSQL
 ```bash
 docker exec -it thesis-postgres psql -U thesis_user -d thesis_db
